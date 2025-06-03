@@ -36,8 +36,8 @@ const GameBoard: React.FC = () => {
     }
   };
   
-  const handleAction = (card: CardType, action: CardAction) => {
-    playCard(card, action);
+  const handleAction = (cards: CardType[], action: CardAction) => {
+    playCard(cards, action);
     setSelectedCard(null);
   };
   
@@ -256,7 +256,7 @@ const GameBoard: React.FC = () => {
           {selectedCard && (
             <ActionSelector
               card={selectedCard}
-              onAction={(cards, action) => handleAction(selectedCard, action)}
+              onAction={handleAction}
               onCancel={() => setSelectedCard(null)}
             />
           )}
