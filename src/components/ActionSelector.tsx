@@ -121,7 +121,34 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         
       case '8':
       case 'Q':
-        return renderSuitSelector();
+        return (
+          <div className="flex flex-col gap-3 items-center">
+            <h3 className="text-lg font-medium">Play {cards.length > 1 ? `${cards.length} Cards` : 'Card'}</h3>
+            
+            <div className="flex justify-center gap-3 mt-2">
+              <motion.button
+                className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onCancel}
+              >
+                Cancel
+              </motion.button>
+              
+              <motion.button
+                className="px-4 py-2 bg-blue-600 rounded-md text-white"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  // After confirming the cards, show suit selector
+                  setSelectedSuit('hearts'); // Show suit selector
+                }}
+              >
+                Confirm Cards
+              </motion.button>
+            </div>
+          </div>
+        );
         
       case 'J':
         return (
@@ -224,10 +251,10 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         exit={{ scale: 0.9, y: 20 }}
         onClick={e => e.stopPropagation()}
       >
-        {renderActionSelector()}
+        {selectedSuit ? renderSuitSelector() : renderActionSelector()}
       </motion.div>
     </motion.div>
   );
 };
 
-export default ActionSelector
+export default ActionSelector;
