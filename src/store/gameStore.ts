@@ -111,16 +111,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   drawCard: () => {
-    const { deck, humanHand, discardPile, currentPlayer } = get();
+    const { deck, humanHand, currentPlayer } = get();
     
+    // Only allow drawing if it's the human's turn and there are cards in the deck
     if (deck.length === 0 || currentPlayer !== 'human') return;
-    
-    // Check if player has any playable cards
-    const topCard = discardPile[discardPile.length - 1];
-    const hasPlayableCard = humanHand.some(card => canPlayCard(card, topCard, null));
-    
-    // Only allow drawing if no playable cards
-    if (hasPlayableCard) return;
     
     const newCard = deck[0];
     const newDeck = deck.slice(1);
