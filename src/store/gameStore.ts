@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createDeck, dealCards, getStartingCard, shuffleDeck, isNormalCard, canPlayCard, SUITS } from '../utils/deck';
+import { createDeck, dealCards, getStartingCard, shuffleDeck, isNormalCard, canPlayCard, SUITS, isSpecialCard } from '../utils/deck';
 import { Card, CardAction, GameState, Player, PendingAction, Suit } from '../types/game';
 
 interface GameStore extends GameState {
