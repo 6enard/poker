@@ -82,8 +82,12 @@ export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAct
   
   if (!topCard) return true;
   
-  // If there's a suit request from an Ace, must play that suit
-  if (pendingAction?.type === 'suitRequest') {
+  // If there's a suit request from an Ace or question card, must play that suit
+  if (pendingAction?.type === 'suitRequest' || pendingAction?.type === 'questionCard') {
+    // Question cards (8 or Q) can be played if they match the requested suit
+    if ((card.value === '8' || card.value === 'Q') && card.suit === pendingAction.suit) {
+      return true;
+    }
     return card.suit === pendingAction.suit;
   }
   

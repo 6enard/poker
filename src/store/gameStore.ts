@@ -91,6 +91,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         suit: action.requestedSuit
       };
       newLastAction += ` and requested ${action.requestedSuit}`;
+    } else if (action.type === 'question') {
+      newPendingAction = {
+        type: 'questionCard',
+        suit: action.suit
+      };
+      newLastAction += ` and asked for ${action.suit}`;
     }
     
     let newGameStatus = get().gameStatus;
@@ -188,6 +194,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             suit: requestedSuit
           };
           newLastAction += ` and requested ${requestedSuit}`;
+        } else if (play.value === '8' || play.value === 'Q') {
+          const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
+          newPendingAction = {
+            type: 'questionCard',
+            suit: requestedSuit
+          };
+          newLastAction += ` and asked for ${requestedSuit}`;
         }
         
         let newGameStatus = get().gameStatus;
