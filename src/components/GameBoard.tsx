@@ -7,7 +7,7 @@ import DiscardPile from './DiscardPile';
 import Deck from './Deck';
 import GameStatus from './GameStatus';
 import ActionSelector from './ActionSelector';
-import { Play, RotateCcw } from 'lucide-react';
+import { Play, RotateCcw, Plus, PlaySquare } from 'lucide-react';
 
 const GameBoard: React.FC = () => {
   const {
@@ -199,6 +199,39 @@ const GameBoard: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* Game Action Buttons */}
+        {currentPlayer === 'human' && !isAiThinking && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
+            <div className="max-w-md mx-auto flex gap-4">
+              <motion.button
+                className="flex-1 py-3 px-4 bg-red-800 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleDrawCard}
+                disabled={deck.length === 0}
+              >
+                <Plus size={20} />
+                Draw Card
+              </motion.button>
+              <motion.button
+                className="flex-1 py-3 px-4 bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  const playableCard = humanHand.find(card => isCardPlayable(card));
+                  if (playableCard) {
+                    handleCardClick(playableCard);
+                  }
+                }}
+                disabled={!humanHand.some(card => isCardPlayable(card))}
+              >
+                <PlaySquare size={20} />
+                Play Card
+              </motion.button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
