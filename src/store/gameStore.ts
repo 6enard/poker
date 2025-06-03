@@ -111,21 +111,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   drawCard: () => {
-    const { deck, humanHand, currentPlayer } = get();
+    const { deck, humanHand, currentPlayer, pendingAction } = get();
     
     // Only allow drawing if it's the human's turn and there are cards in the deck
     if (deck.length === 0 || currentPlayer !== 'human') return;
     
-    const newCard = deck[0];
-    const newDeck = deck.slice(1);
-    const newHand = [...humanHand, newCard];
+    // Handle drawing multiple cards for pending draw actions
+    const drawCount = pendingAction?.type === 'drawCards' ? pendingAction.count : 1;
+    
+    // Check if we have enough cards in the deck
+    if (deck.length < drawCount) return;
+    
+    // Draw the required number of cards
+    const newCards = deck.slice(0, drawCount);
+    const newDeck = deck.slice(drawCount);
+    const newHand = [...humanHand, ...newCards];
     
     set({
       deck: newDeck,
       humanHand: newHand,
-      lastAction: 'You drew a card',
+      lastAction: `You drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
       currentPlayer: 'ai',
-      drawCount: get().drawCount + 1
+      pendingAction: null,
+      drawCount: get().drawCount + drawCount
     });
     
     setTimeout(() => get().startAiTurn(), 1000);
