@@ -24,6 +24,7 @@ export interface GameState {
   isAiThinking: boolean;
   selectedCards: Card[];
   lastPlayedValue: string | null;
+  lastNormalCard: Card | null;
 }
 
 export type CardAction = 

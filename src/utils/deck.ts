@@ -77,6 +77,18 @@ export const getSuitColor = (suit: Suit): string => {
 };
 
 export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAction | null): boolean => {
+  // If there's a draw action pending (2 or 3 was played)
+  if (pendingAction?.type === 'drawCards') {
+    // Can only play a 2, 3, or Ace
+    if (card.value === '2' || card.value === '3') {
+      return true;
+    }
+    if (card.value === 'A') {
+      return true;
+    }
+    return false;
+  }
+  
   // Aces are always playable
   if (card.value === 'A') return true;
   
@@ -96,11 +108,6 @@ export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAct
   
   // Can play if suits match
   if (card.suit === topCard.suit) return true;
-  
-  // If there's a draw action pending, can counter with same value
-  if (pendingAction?.type === 'drawCards') {
-    return card.value === topCard.value;
-  }
   
   return false;
 };

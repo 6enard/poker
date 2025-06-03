@@ -28,6 +28,7 @@ const initialState: GameState = {
   isAiThinking: false,
   selectedCards: [],
   lastPlayedValue: null,
+  lastNormalCard: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -58,6 +59,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isAiThinking: false,
       selectedCards: [],
       lastPlayedValue: null,
+      lastNormalCard: startCard,
     });
 
     if (get().currentPlayer === 'ai') {
@@ -126,7 +128,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   playCard: (cards: Card[], action: CardAction) => {
-    const { humanHand, discardPile } = get();
+    const { humanHand, discardPile, lastNormalCard } = get();
     
     // Remove played cards from hand
     const newHand = humanHand.filter(card => !cards.some(c => c.id === card.id));
@@ -136,14 +138,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let nextPlayer: Player = cards[0].value === 'J' ? 'human' : 'ai';
     let newPendingAction: PendingAction | null = null;
     let newLastPlayedValue: string | null = cards[0].value === 'J' ? cards[0].value : null;
+    let newLastNormalCard = lastNormalCard;
     
     // Handle special card actions
     if (action.type === 'ace') {
+      // When an Ace is played, the game continues with the value of the card below it
       newPendingAction = {
         type: 'suitRequest',
         suit: action.requestedSuit
       };
       newLastAction += ` and requested ${action.requestedSuit}`;
+      // The game continues with the last normal card's value
+      if (lastNormalCard) {
+        newLastAction += ` (continuing with ${lastNormalCard.value})`;
+      }
     } else if (action.type === 'question') {
       newPendingAction = {
         type: 'questionCard',
@@ -156,9 +164,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         type: 'drawCards',
         count: totalDraws
       };
-      newLastAction += ` - opponent must draw ${totalDraws} cards`;
+      newLastAction += ` - opponent must draw ${totalDraws} cards or counter`;
     } else if (cards[0].value === 'J') {
       newLastAction += ' - play another J';
+    } else if (!isSpecialCard(cards[0].value)) {
+      // Update last normal card when a non-special card is played
+      newLastNormalCard = cards[0];
     }
     
     let newGameStatus = get().gameStatus;
@@ -182,6 +193,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameStatus: newGameStatus,
       selectedCards: [],
       lastPlayedValue: newLastPlayedValue,
+      lastNormalCard: newLastNormalCard,
     });
     
     if (nextPlayer === 'ai' && newGameStatus === 'playing') {
@@ -221,17 +233,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startAiTurn: () => {
-    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue } = get();
+    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue, lastNormalCard } = get();
     
     set({ isAiThinking: true });
     
     setTimeout(() => {
       const topCard = discardPile[discardPile.length - 1];
       
-      // If last card was J, only look for cards of the same value
-      let playableCards = lastPlayedValue 
-        ? aiHand.filter(card => card.value === lastPlayedValue)
-        : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
+      // If there's a draw cards pending action, only look for 2s, 3s, or Aces
+      let playableCards = pendingAction?.type === 'drawCards'
+        ? aiHand.filter(card => card.value === '2' || card.value === '3' || card.value === 'A')
+        : lastPlayedValue 
+          ? aiHand.filter(card => card.value === lastPlayedValue)
+          : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // Group playable cards by value
@@ -262,6 +276,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         let nextPlayer: Player = selectedCards[0].value === 'J' ? 'ai' : 'human';
         let newPendingAction: PendingAction | null = null;
         let newLastPlayedValue: string | null = selectedCards[0].value === 'J' ? selectedCards[0].value : null;
+        let newLastNormalCard = lastNormalCard;
         
         // Handle AI playing special cards
         if (selectedCards[0].value === 'A') {
@@ -271,21 +286,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
             suit: requestedSuit
           };
           newLastAction += ` and requested ${requestedSuit}`;
+          if (lastNormalCard) {
+            newLastAction += ` (continuing with ${lastNormalCard.value})`;
+          }
         } else if (selectedCards[0].value === '8' || selectedCards[0].value === 'Q') {
-          // When AI plays 8 or Q, it should play another card of the same suit first
           const sameSuitCards = aiHand.filter(card => 
             card.suit === selectedCards[0].suit && 
             card.id !== selectedCards[0].id
           );
           
           if (sameSuitCards.length > 0) {
-            // Play a random card of the same suit
             const followUpCard = sameSuitCards[Math.floor(Math.random() * sameSuitCards.length)];
             newAiHand.splice(newAiHand.findIndex(c => c.id === followUpCard.id), 1);
             newDiscardPile.push(followUpCard);
             newLastAction += ` and followed with ${followUpCard.value} of ${followUpCard.suit}`;
+            if (!isSpecialCard(followUpCard.value)) {
+              newLastNormalCard = followUpCard;
+            }
           } else {
-            // If no cards of same suit, create question action for human
             newPendingAction = {
               type: 'questionCard',
               suit: selectedCards[0].suit
@@ -298,9 +316,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
             type: 'drawCards',
             count: totalDraws
           };
-          newLastAction += ` - you must draw ${totalDraws} cards`;
+          newLastAction += ` - you must draw ${totalDraws} cards or counter`;
         } else if (selectedCards[0].value === 'J') {
           newLastAction += ' - AI plays again';
+        } else if (!isSpecialCard(selectedCards[0].value)) {
+          newLastNormalCard = selectedCards[0];
         }
         
         let newGameStatus = get().gameStatus;
@@ -323,9 +343,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           gameStatus: newGameStatus,
           isAiThinking: false,
           lastPlayedValue: newLastPlayedValue,
+          lastNormalCard: newLastNormalCard,
         });
 
-        // If AI plays a J, start their turn again after a delay
         if (nextPlayer === 'ai' && newGameStatus === 'playing') {
           setTimeout(() => get().startAiTurn(), 1000);
         }
