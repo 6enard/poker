@@ -77,6 +77,9 @@ export const getSuitColor = (suit: Suit): string => {
 };
 
 export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAction | null): boolean => {
+  // Aces are always playable
+  if (card.value === 'A') return true;
+  
   if (!topCard) return true;
   
   // If there's a suit request from an Ace, must play that suit
