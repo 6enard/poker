@@ -75,3 +75,22 @@ export const getSuitSymbol = (suit: Suit): string => {
 export const getSuitColor = (suit: Suit): string => {
   return suit === "hearts" || suit === "diamonds" ? "text-red-600" : "text-gray-900";
 };
+
+export const canPlayCard = (card: Card, topCard: Card, pendingAction: any): boolean => {
+  if (!topCard) return true;
+  
+  // Can only play cards with matching value
+  if (card.value === topCard.value) return true;
+  
+  // Special case for 2 and 3 - can only be played if matching value
+  if ((card.value === '2' || card.value === '3') && card.value !== topCard.value) {
+    return false;
+  }
+  
+  // If there's a draw action pending, can only counter with same value
+  if (pendingAction?.type === 'drawCards') {
+    return card.value === topCard.value;
+  }
+  
+  return false;
+};
