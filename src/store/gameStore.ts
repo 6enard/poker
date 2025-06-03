@@ -27,6 +27,7 @@ const initialState: GameState = {
   turnCount: 0,
   isAiThinking: false,
   selectedCards: [],
+  lastPlayedValue: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -56,6 +57,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       turnCount: 0,
       isAiThinking: false,
       selectedCards: [],
+      lastPlayedValue: null,
     });
 
     if (get().currentPlayer === 'ai') {
@@ -68,13 +70,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   toggleCardSelection: (card: Card) => {
-    const { selectedCards, humanHand, discardPile, pendingAction } = get();
+    const { selectedCards, humanHand, discardPile, pendingAction, lastPlayedValue } = get();
     const topCard = discardPile[discardPile.length - 1];
 
     // If card is already selected, remove it
     if (selectedCards.find(c => c.id === card.id)) {
       set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
       return;
+    }
+
+    // If last played card was a J, only allow cards of the same value
+    if (lastPlayedValue) {
+      if (card.value !== lastPlayedValue) return;
     }
 
     // Only allow selecting cards of the same value
@@ -98,10 +105,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   isCardPlayable: (card: Card) => {
-    const { discardPile, pendingAction, currentPlayer, selectedCards } = get();
+    const { discardPile, pendingAction, currentPlayer, selectedCards, lastPlayedValue } = get();
     if (currentPlayer !== 'human') return false;
     
     const topCard = discardPile[discardPile.length - 1];
+
+    // If last played card was a J, only allow cards of the same value
+    if (lastPlayedValue) {
+      return card.value === lastPlayedValue;
+    }
 
     // If we already have selected cards, only allow selecting same value
     if (selectedCards.length > 0) {
@@ -123,6 +135,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let newLastAction = `You played ${cards.length > 1 ? `${cards.length} ${cards[0].value}s` : `${cards[0].value} of ${cards[0].suit}`}`;
     let nextPlayer: Player = cards[0].value === 'J' ? 'human' : 'ai';
     let newPendingAction: PendingAction | null = null;
+    let newLastPlayedValue: string | null = cards[0].value === 'J' ? cards[0].value : null;
     
     // Handle special card actions
     if (action.type === 'ace') {
@@ -144,6 +157,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         count: totalDraws
       };
       newLastAction += ` - opponent must draw ${totalDraws} cards`;
+    } else if (cards[0].value === 'J') {
+      newLastAction += ' - play another J';
     }
     
     let newGameStatus = get().gameStatus;
@@ -165,7 +180,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentPlayer: nextPlayer,
       turnCount: get().turnCount + 1,
       gameStatus: newGameStatus,
-      selectedCards: []
+      selectedCards: [],
+      lastPlayedValue: newLastPlayedValue,
     });
     
     if (nextPlayer === 'ai' && newGameStatus === 'playing') {
@@ -193,7 +209,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentPlayer: 'ai',
       pendingAction: null,
       drawCount: get().drawCount + drawCount,
-      selectedCards: []
+      selectedCards: [],
+      lastPlayedValue: null,
     });
     
     setTimeout(() => get().startAiTurn(), 1000);
@@ -204,13 +221,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startAiTurn: () => {
-    const { aiHand, discardPile, deck, pendingAction } = get();
+    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue } = get();
     
     set({ isAiThinking: true });
     
     setTimeout(() => {
       const topCard = discardPile[discardPile.length - 1];
-      let playableCards = aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
+      
+      // If last card was J, only look for cards of the same value
+      let playableCards = lastPlayedValue 
+        ? aiHand.filter(card => card.value === lastPlayedValue)
+        : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // Group playable cards by value
@@ -240,6 +261,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         let newLastAction = `AI played ${selectedCards.length > 1 ? `${selectedCards.length} ${selectedCards[0].value}s` : `${selectedCards[0].value} of ${selectedCards[0].suit}`}`;
         let nextPlayer: Player = selectedCards[0].value === 'J' ? 'ai' : 'human';
         let newPendingAction: PendingAction | null = null;
+        let newLastPlayedValue: string | null = selectedCards[0].value === 'J' ? selectedCards[0].value : null;
         
         // Handle AI playing special cards
         if (selectedCards[0].value === 'A') {
@@ -263,6 +285,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             count: totalDraws
           };
           newLastAction += ` - you must draw ${totalDraws} cards`;
+        } else if (selectedCards[0].value === 'J') {
+          newLastAction += ' - AI plays again';
         }
         
         let newGameStatus = get().gameStatus;
@@ -283,15 +307,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
           currentPlayer: nextPlayer,
           turnCount: get().turnCount + 1,
           gameStatus: newGameStatus,
-          isAiThinking: false
+          isAiThinking: false,
+          lastPlayedValue: newLastPlayedValue,
         });
+
+        // If AI plays a J, start their turn again after a delay
+        if (nextPlayer === 'ai' && newGameStatus === 'playing') {
+          setTimeout(() => get().startAiTurn(), 1000);
+        }
       } else {
         // AI must draw a card
         if (deck.length === 0) {
           set({
             lastAction: 'AI tried to draw but the deck is empty',
             currentPlayer: 'human',
-            isAiThinking: false
+            isAiThinking: false,
+            lastPlayedValue: null,
           });
           return;
         }
@@ -308,7 +339,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           currentPlayer: 'human',
           isAiThinking: false,
           drawCount: get().drawCount + drawCount,
-          pendingAction: null
+          pendingAction: null,
+          lastPlayedValue: null,
         });
       }
     }, 1500);

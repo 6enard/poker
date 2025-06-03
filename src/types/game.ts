@@ -23,6 +23,7 @@ export interface GameState {
   turnCount: number;
   isAiThinking: boolean;
   selectedCards: Card[];
+  lastPlayedValue: string | null;
 }
 
 export type CardAction = 
@@ -45,13 +46,3 @@ export type GameAction =
   | { type: "SET_PENDING_ACTION"; action: PendingAction | null }
   | { type: "AI_TURN_START" }
   | { type: "AI_TURN_END"; card?: Card; action?: CardAction };
-
-export interface GameContextType {
-  state: GameState;
-  dispatch: React.Dispatch<GameAction>;
-  isCardPlayable: (card: Card) => boolean;
-  playCard: (card: Card, action?: CardAction) => void;
-  drawCard: () => void;
-  startGame: () => void;
-  resetGame: () => void;
-}
