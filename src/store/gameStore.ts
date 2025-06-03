@@ -111,9 +111,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   drawCard: () => {
-    const { deck, humanHand, currentPlayer } = get();
+    const { deck, humanHand, discardPile, currentPlayer } = get();
     
     if (deck.length === 0 || currentPlayer !== 'human') return;
+    
+    // Check if player has any playable cards
+    const topCard = discardPile[discardPile.length - 1];
+    const hasPlayableCard = humanHand.some(card => canPlayCard(card, topCard, null));
+    
+    // Only allow drawing if no playable cards
+    if (hasPlayableCard) return;
     
     const newCard = deck[0];
     const newDeck = deck.slice(1);

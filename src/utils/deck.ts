@@ -79,15 +79,13 @@ export const getSuitColor = (suit: Suit): string => {
 export const canPlayCard = (card: Card, topCard: Card, pendingAction: any): boolean => {
   if (!topCard) return true;
   
-  // Can only play cards with matching value
+  // Can play if values match
   if (card.value === topCard.value) return true;
   
-  // Special case for 2 and 3 - can only be played if matching value
-  if ((card.value === '2' || card.value === '3') && card.value !== topCard.value) {
-    return false;
-  }
+  // Can play if suits match and it's a 2 or 3
+  if ((card.value === '2' || card.value === '3') && card.suit === topCard.suit) return true;
   
-  // If there's a draw action pending, can only counter with same value
+  // If there's a draw action pending, can counter with same value
   if (pendingAction?.type === 'drawCards') {
     return card.value === topCard.value;
   }
