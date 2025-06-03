@@ -5,7 +5,7 @@ import { Card, CardAction, GameState, Player, PendingAction, Suit } from '../typ
 interface GameStore extends GameState {
   startGame: () => void;
   resetGame: () => void;
-  playCard: (card: Card) => void;
+  playCard: (card: Card, action: CardAction) => void;
   drawCard: () => void;
   setPendingAction: (action: PendingAction | null) => void;
   startAiTurn: () => void;
@@ -71,7 +71,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return canPlayCard(card, topCard, pendingAction);
   },
 
-  playCard: (card: Card) => {
+  playCard: (card: Card, action: CardAction) => {
     const { humanHand, discardPile } = get();
     
     const cardIndex = humanHand.findIndex(c => c.id === card.id);
@@ -82,6 +82,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     let newLastAction = `You played ${card.value} of ${card.suit}`;
     let nextPlayer: Player = 'ai';
+    let newPendingAction: PendingAction | null = null;
+    
+    // Handle special card actions
+    if (action.type === 'ace') {
+      newPendingAction = {
+        type: 'suitRequest',
+        suit: action.requestedSuit
+      };
+      newLastAction += ` and requested ${action.requestedSuit}`;
+    }
     
     let newGameStatus = get().gameStatus;
     if (newHand.length === 0) {
@@ -98,7 +108,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       humanHand: newHand,
       discardPile: newDiscardPile,
-      pendingAction: null,
+      pendingAction: newPendingAction,
       lastAction: newLastAction,
       currentPlayer: nextPlayer,
       turnCount: get().turnCount + 1,
@@ -144,13 +154,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startAiTurn: () => {
-    const { aiHand, discardPile, deck } = get();
+    const { aiHand, discardPile, deck, pendingAction } = get();
     
     set({ isAiThinking: true });
     
     setTimeout(() => {
       const topCard = discardPile[discardPile.length - 1];
-      let playableCards = aiHand.filter(card => canPlayCard(card, topCard, null));
+      let playableCards = aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // AI tries to win if possible
@@ -168,6 +178,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         
         let newLastAction = `AI played ${play.value} of ${play.suit}`;
         let nextPlayer: Player = 'human';
+        let newPendingAction: PendingAction | null = null;
+        
+        // Handle AI playing special cards
+        if (play.value === 'A') {
+          const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
+          newPendingAction = {
+            type: 'suitRequest',
+            suit: requestedSuit
+          };
+          newLastAction += ` and requested ${requestedSuit}`;
+        }
         
         let newGameStatus = get().gameStatus;
         if (newAiHand.length === 0) {
@@ -182,7 +203,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({
           aiHand: newAiHand,
           discardPile: newDiscardPile,
-          pendingAction: null,
+          pendingAction: newPendingAction,
           lastAction: newLastAction,
           currentPlayer: nextPlayer,
           turnCount: get().turnCount + 1,

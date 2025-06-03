@@ -1,4 +1,4 @@
-import { Card, Suit, Value } from "../types/game";
+import { Card, Suit, Value, PendingAction } from "../types/game";
 
 export const SUITS: Suit[] = ["hearts", "diamonds", "clubs", "spades"];
 export const VALUES: Value[] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -76,8 +76,13 @@ export const getSuitColor = (suit: Suit): string => {
   return suit === "hearts" || suit === "diamonds" ? "text-red-600" : "text-gray-900";
 };
 
-export const canPlayCard = (card: Card, topCard: Card, pendingAction: any): boolean => {
+export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAction | null): boolean => {
   if (!topCard) return true;
+  
+  // If there's a suit request from an Ace, must play that suit
+  if (pendingAction?.type === 'suitRequest') {
+    return card.suit === pendingAction.suit;
+  }
   
   // Can play if values match
   if (card.value === topCard.value) return true;
