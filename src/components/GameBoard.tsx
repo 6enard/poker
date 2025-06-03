@@ -198,7 +198,7 @@ const GameBoard: React.FC = () => {
         </div>
         
         {/* Player Hand */}
-        <div className="mt-6 mb-24">
+        <div className="mt-6 mb-32">
           <div className="flex justify-center">
             <Hand 
               cards={humanHand} 
@@ -212,7 +212,7 @@ const GameBoard: React.FC = () => {
         {/* Game Action Buttons */}
         {currentPlayer === 'human' && !isAiThinking && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
-            <div className="max-w-md mx-auto flex gap-4">
+            <div className="container max-w-md mx-auto flex gap-4">
               <motion.button
                 className="flex-1 py-3 px-4 bg-red-800 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 whileHover={{ scale: 1.02 }}
@@ -256,7 +256,7 @@ const GameBoard: React.FC = () => {
           {selectedCard && (
             <ActionSelector
               card={selectedCard}
-              onAction={handleAction}
+              onAction={(cards, action) => handleAction(selectedCard, action)}
               onCancel={() => setSelectedCard(null)}
             />
           )}
