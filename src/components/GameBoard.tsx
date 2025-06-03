@@ -31,7 +31,9 @@ const GameBoard: React.FC = () => {
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
   
   const handleCardClick = (card: CardType) => {
-    setSelectedCard(card);
+    if (isCardPlayable(card)) {
+      setSelectedCard(card);
+    }
   };
   
   const handleAction = (card: CardType, action: CardAction) => {
@@ -189,7 +191,7 @@ const GameBoard: React.FC = () => {
         </div>
         
         {/* Player Hand */}
-        <div className="mt-6">
+        <div className="mt-6 mb-24">
           <div className="flex justify-center">
             <Hand 
               cards={humanHand} 
