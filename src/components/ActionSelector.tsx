@@ -27,7 +27,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
     
     return (
       <div className="flex flex-col gap-3">
-        <h3 className="text-lg font-medium text-center">Select a suit</h3>
+        <h3 className="text-lg font-semibold text-center">Select a suit</h3>
         <div className="flex justify-center gap-3">
           {suits.map(suit => (
             <motion.button
@@ -67,8 +67,6 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
               if (selectedSuit) {
                 if (card.value === 'A') {
                   handleAction({ type: 'ace', requestedSuit: selectedSuit });
-                } else if (card.value === 'Q' || card.value === '8') {
-                  handleAction({ type: 'question', suit: selectedSuit });
                 }
               }
             }}
@@ -124,6 +122,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Play {cards.length > 1 ? `${cards.length} Cards` : 'Card'}</h3>
+            <p className="text-sm text-gray-600">Opponent must play a {value}</p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -139,12 +138,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-blue-600 rounded-md text-white"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  // After confirming the cards, show suit selector
-                  setSelectedSuit('hearts'); // Show suit selector
-                }}
+                onClick={() => handleAction({ type: 'question', suit: card.suit })}
               >
-                Confirm Cards
+                Confirm
               </motion.button>
             </div>
           </div>
@@ -251,7 +247,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         exit={{ scale: 0.9, y: 20 }}
         onClick={e => e.stopPropagation()}
       >
-        {selectedSuit ? renderSuitSelector() : renderActionSelector()}
+        {renderActionSelector()}
       </motion.div>
     </motion.div>
   );
