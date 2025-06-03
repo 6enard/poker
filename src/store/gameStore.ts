@@ -272,12 +272,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
           newLastAction += ` and requested ${requestedSuit}`;
         } else if (selectedCards[0].value === '8' || selectedCards[0].value === 'Q') {
-          const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
-          newPendingAction = {
-            type: 'questionCard',
-            suit: requestedSuit
-          };
-          newLastAction += ` and asked for ${requestedSuit}`;
+          // When AI plays 8 or Q, it should play another card of the same suit first
+          const sameSuitCards = aiHand.filter(card => 
+            card.suit === selectedCards[0].suit && 
+            card.id !== selectedCards[0].id
+          );
+          
+          if (sameSuitCards.length > 0) {
+            // Play a random card of the same suit
+            const followUpCard = sameSuitCards[Math.floor(Math.random() * sameSuitCards.length)];
+            newAiHand.splice(newAiHand.findIndex(c => c.id === followUpCard.id), 1);
+            newDiscardPile.push(followUpCard);
+            newLastAction += ` and followed with ${followUpCard.value} of ${followUpCard.suit}`;
+          } else {
+            // If no cards of same suit, create question action for human
+            newPendingAction = {
+              type: 'questionCard',
+              suit: selectedCards[0].suit
+            };
+            newLastAction += ` and asked for ${selectedCards[0].suit}`;
+          }
         } else if (selectedCards[0].value === '2' || selectedCards[0].value === '3') {
           const totalDraws = selectedCards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
           newPendingAction = {
