@@ -42,7 +42,14 @@ const GameBoard: React.FC = () => {
   };
   
   const handleDrawCard = () => {
-    drawCard();
+    if (pendingAction?.type === 'drawCards') {
+      // Automatically draw the required number of cards
+      for (let i = 0; i < pendingAction.count; i++) {
+        drawCard();
+      }
+    } else {
+      drawCard();
+    }
   };
   
   const renderGameContent = () => {
@@ -214,7 +221,9 @@ const GameBoard: React.FC = () => {
                 disabled={deck.length === 0}
               >
                 <Plus size={20} />
-                Draw Card
+                {pendingAction?.type === 'drawCards' 
+                  ? `Draw ${pendingAction.count} Cards` 
+                  : 'Draw Card'}
               </motion.button>
               <motion.button
                 className="flex-1 py-3 px-4 bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
