@@ -46,18 +46,14 @@ const Deck: React.FC<DeckProps> = ({ cardsLeft, onDraw, canDraw }) => {
             {/* Clickable top card */}
             <motion.div
               whileHover={canDraw ? { scale: 1.05 } : {}}
-              className="relative"
+              className={`relative ${canDraw ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+              onClick={canDraw ? onDraw : undefined}
             >
-              <div 
-                onClick={canDraw ? onDraw : undefined}
-                className={`${canDraw ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-              >
-                <Card 
-                  card={placeholderCard} 
-                  isPlayable={canDraw} 
-                  isFaceDown={true} 
-                />
-              </div>
+              <Card 
+                card={placeholderCard} 
+                isPlayable={canDraw} 
+                isFaceDown={true} 
+              />
               
               {canDraw && (
                 <motion.div 
