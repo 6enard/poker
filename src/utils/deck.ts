@@ -82,8 +82,8 @@ export const canPlayCard = (card: Card, topCard: Card, pendingAction: any): bool
   // Can play if values match
   if (card.value === topCard.value) return true;
   
-  // Can play if suits match and it's a 2 or 3
-  if ((card.value === '2' || card.value === '3') && card.suit === topCard.suit) return true;
+  // Can play if suits match
+  if (card.suit === topCard.suit) return true;
   
   // If there's a draw action pending, can counter with same value
   if (pendingAction?.type === 'drawCards') {
