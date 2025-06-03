@@ -2,6 +2,7 @@ import React from 'react';
 import Card from './Card';
 import { Card as CardType } from '../types/game';
 import { motion } from 'framer-motion';
+import { useGameStore } from '../store/gameStore';
 
 interface HandProps {
   cards: CardType[];
@@ -18,6 +19,8 @@ const Hand: React.FC<HandProps> = ({
   isVisible = true,
   title
 }) => {
+  const selectedCards = useGameStore(state => state.selectedCards);
+  
   // Calculate the spread width based on number of cards
   const getSpreadWidth = () => {
     // Base width per card, reduced for larger hands
@@ -42,13 +45,15 @@ const Hand: React.FC<HandProps> = ({
             ? (index / (cards.length - 1) - 0.5) * spreadWidth 
             : 0;
           
+          const isSelected = selectedCards.some(c => c.id === card.id);
+          
           return (
             <div 
               key={card.id} 
               className="absolute top-0"
               style={{ 
                 left: '50%',
-                transform: `translateX(calc(-50% + ${offset}px)) rotate(${(index - cards.length / 2) * 2}deg)`,
+                transform: `translateX(calc(-50% + ${offset}px)) rotate(${(index - cards.length / 2) * 2}deg) translateY(${isSelected ? '-20px' : '0'})`,
                 zIndex: index
               }}
             >
@@ -57,6 +62,7 @@ const Hand: React.FC<HandProps> = ({
                 isPlayable={isVisible && isPlayable(card)} 
                 isFaceDown={!isVisible}
                 onClick={onCardClick}
+                isSelected={isSelected}
               />
             </div>
           );
@@ -72,5 +78,3 @@ const Hand: React.FC<HandProps> = ({
     </div>
   );
 };
-
-export default Hand;

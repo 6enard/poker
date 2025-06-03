@@ -10,6 +10,7 @@ interface CardProps {
   onClick?: (card: CardType) => void;
   scale?: number;
   className?: string;
+  isSelected?: boolean;
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -18,7 +19,8 @@ const Card: React.FC<CardProps> = ({
   isFaceDown = false, 
   onClick, 
   scale = 1,
-  className = ''
+  className = '',
+  isSelected = false
 }) => {
   const handleClick = () => {
     if (isPlayable && onClick) {
@@ -36,7 +38,7 @@ const Card: React.FC<CardProps> = ({
         width: `${70 * scale}px`, 
         height: `${100 * scale}px` 
       }}
-      whileHover={isPlayable ? { scale: 1.1, y: -10 } : {}}
+      whileHover={isPlayable ? { scale: 1.1 } : {}}
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -45,7 +47,7 @@ const Card: React.FC<CardProps> = ({
         className={`w-full h-full rounded-lg shadow-md cursor-pointer transform transition-transform duration-150 ${
           isFaceDown 
             ? 'bg-gradient-to-br from-red-800 to-red-900 border-2 border-red-700' 
-            : `bg-white border-2 ${isPlayable ? 'border-green-500' : 'border-gray-300'}`
+            : `bg-white border-2 ${isSelected ? 'border-blue-500' : isPlayable ? 'border-green-500' : 'border-gray-300'}`
         } ${isPlayable ? 'hover:shadow-lg' : ''}`}
         onClick={handleClick}
       >
@@ -72,7 +74,7 @@ const Card: React.FC<CardProps> = ({
         )}
       </div>
       
-      {isPlayable && !isFaceDown && (
+      {isPlayable && !isFaceDown && !isSelected && (
         <motion.div 
           className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-10 h-2 bg-green-500 rounded-full"
           initial={{ opacity: 0 }}
@@ -83,5 +85,3 @@ const Card: React.FC<CardProps> = ({
     </motion.div>
   );
 };
-
-export default Card;

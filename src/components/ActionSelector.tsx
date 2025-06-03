@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card as CardType, CardAction, Suit } from '../types/game';
 import { getSuitSymbol } from '../utils/deck';
+import { useGameStore } from '../store/gameStore';
 
 interface ActionSelectorProps {
   card: CardType;
-  onAction: (card: CardType, action: CardAction) => void;
+  onAction: (cards: CardType[], action: CardAction) => void;
   onCancel: () => void;
 }
 
@@ -15,9 +16,10 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
   onCancel 
 }) => {
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
+  const selectedCards = useGameStore(state => state.selectedCards);
   
   const handleAction = (action: CardAction) => {
-    onAction(card, action);
+    onAction(selectedCards.length > 0 ? selectedCards : [card], action);
   };
   
   const renderSuitSelector = () => {
@@ -80,44 +82,20 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
   };
   
   const renderActionSelector = () => {
-    // Different actions based on card value
-    switch (card.value) {
+    const cards = selectedCards.length > 0 ? selectedCards : [card];
+    const value = cards[0].value;
+    
+    switch (value) {
       case 'A':
         return renderSuitSelector();
         
       case '2':
-        return (
-          <div className="flex flex-col gap-3 items-center">
-            <h3 className="text-lg font-medium">Draw 2 Attack</h3>
-            <p className="text-sm text-gray-600">Your opponent will draw 2 cards</p>
-            
-            <div className="flex justify-center gap-3 mt-2">
-              <motion.button
-                className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
-              >
-                Cancel
-              </motion.button>
-              
-              <motion.button
-                className="px-4 py-2 bg-blue-600 rounded-md text-white"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleAction({ type: 'draw', count: 2 })}
-              >
-                Confirm
-              </motion.button>
-            </div>
-          </div>
-        );
-        
       case '3':
+        const totalDraws = cards.reduce((sum, c) => sum + (c.value === '2' ? 2 : 3), 0);
         return (
           <div className="flex flex-col gap-3 items-center">
-            <h3 className="text-lg font-medium">Draw 3 Attack</h3>
-            <p className="text-sm text-gray-600">Your opponent will draw 3 cards</p>
+            <h3 className="text-lg font-medium">Draw {totalDraws} Attack</h3>
+            <p className="text-sm text-gray-600">Your opponent will draw {totalDraws} cards</p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -133,7 +111,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-blue-600 rounded-md text-white"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleAction({ type: 'draw', count: 3 })}
+                onClick={() => handleAction({ type: 'draw', count: totalDraws, cards })}
               >
                 Confirm
               </motion.button>
@@ -149,7 +127,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Skip Turn</h3>
-            <p className="text-sm text-gray-600">Skip your opponent's turn</p>
+            <p className="text-sm text-gray-600">Play again after this turn</p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -205,7 +183,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         // Normal card
         return (
           <div className="flex flex-col gap-3 items-center">
-            <h3 className="text-lg font-medium">Play Card</h3>
+            <h3 className="text-lg font-medium">Play {cards.length > 1 ? `${cards.length} Cards` : 'Card'}</h3>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -221,7 +199,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-blue-600 rounded-md text-white"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleAction({ type: 'normal' })}
+                onClick={() => handleAction({ type: 'normal', cards })}
               >
                 Confirm
               </motion.button>
@@ -251,5 +229,3 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
     </motion.div>
   );
 };
-
-export default ActionSelector;

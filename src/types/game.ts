@@ -22,12 +22,13 @@ export interface GameState {
   drawCount: number;
   turnCount: number;
   isAiThinking: boolean;
+  selectedCards: Card[];
 }
 
 export type CardAction = 
-  | { type: "normal" }
+  | { type: "normal"; cards: Card[] }
   | { type: "ace"; requestedSuit: Suit }
-  | { type: "draw"; count: number }
+  | { type: "draw"; count: number; cards: Card[] }
   | { type: "question"; suit: Suit }
   | { type: "skip" }
   | { type: "pass" };

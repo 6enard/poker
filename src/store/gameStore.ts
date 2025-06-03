@@ -5,11 +5,13 @@ import { Card, CardAction, GameState, Player, PendingAction, Suit } from '../typ
 interface GameStore extends GameState {
   startGame: () => void;
   resetGame: () => void;
-  playCard: (card: Card, action: CardAction) => void;
+  playCard: (cards: Card[], action: CardAction) => void;
   drawCard: () => void;
   setPendingAction: (action: PendingAction | null) => void;
   startAiTurn: () => void;
   isCardPlayable: (card: Card) => boolean;
+  toggleCardSelection: (card: Card) => void;
+  clearSelectedCards: () => void;
 }
 
 const initialState: GameState = {
@@ -24,6 +26,7 @@ const initialState: GameState = {
   drawCount: 0,
   turnCount: 0,
   isAiThinking: false,
+  selectedCards: [],
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -52,6 +55,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       drawCount: 0,
       turnCount: 0,
       isAiThinking: false,
+      selectedCards: [],
     });
 
     if (get().currentPlayer === 'ai') {
@@ -63,25 +67,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(initialState);
   },
 
+  toggleCardSelection: (card: Card) => {
+    const { selectedCards, humanHand, discardPile, pendingAction } = get();
+    const topCard = discardPile[discardPile.length - 1];
+
+    // If card is already selected, remove it
+    if (selectedCards.find(c => c.id === card.id)) {
+      set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
+      return;
+    }
+
+    // Only allow selecting cards of the same value
+    if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
+      return;
+    }
+
+    // Special case for 2s and 3s - they can be mixed
+    const isDrawCard = card.value === '2' || card.value === '3';
+    const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
+    
+    if ((isDrawCard && hasDrawCards) || (!isDrawCard && selectedCards.length === 0) || (selectedCards.length > 0 && selectedCards[0].value === card.value)) {
+      if (canPlayCard(card, topCard, pendingAction)) {
+        set({ selectedCards: [...selectedCards, card] });
+      }
+    }
+  },
+
+  clearSelectedCards: () => {
+    set({ selectedCards: [] });
+  },
+
   isCardPlayable: (card: Card) => {
-    const { discardPile, pendingAction, currentPlayer } = get();
+    const { discardPile, pendingAction, currentPlayer, selectedCards } = get();
     if (currentPlayer !== 'human') return false;
     
     const topCard = discardPile[discardPile.length - 1];
+
+    // If we already have selected cards, only allow selecting same value
+    if (selectedCards.length > 0) {
+      const isDrawCard = card.value === '2' || card.value === '3';
+      const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
+      return isDrawCard ? hasDrawCards : card.value === selectedCards[0].value;
+    }
+
     return canPlayCard(card, topCard, pendingAction);
   },
 
-  playCard: (card: Card, action: CardAction) => {
+  playCard: (cards: Card[], action: CardAction) => {
     const { humanHand, discardPile } = get();
     
-    const cardIndex = humanHand.findIndex(c => c.id === card.id);
-    if (cardIndex === -1) return;
+    // Remove played cards from hand
+    const newHand = humanHand.filter(card => !cards.some(c => c.id === card.id));
+    const newDiscardPile = [...discardPile, ...cards];
     
-    const newHand = [...humanHand.slice(0, cardIndex), ...humanHand.slice(cardIndex + 1)];
-    const newDiscardPile = [...discardPile, card];
-    
-    let newLastAction = `You played ${card.value} of ${card.suit}`;
-    let nextPlayer: Player = 'ai';
+    let newLastAction = `You played ${cards.length > 1 ? `${cards.length} ${cards[0].value}s` : `${cards[0].value} of ${cards[0].suit}`}`;
+    let nextPlayer: Player = cards[0].value === 'J' ? 'human' : 'ai';
     let newPendingAction: PendingAction | null = null;
     
     // Handle special card actions
@@ -97,16 +137,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         suit: action.suit
       };
       newLastAction += ` and asked for ${action.suit}`;
+    } else if (action.type === 'draw') {
+      const totalDraws = cards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
+      newPendingAction = {
+        type: 'drawCards',
+        count: totalDraws
+      };
+      newLastAction += ` - opponent must draw ${totalDraws} cards`;
     }
     
     let newGameStatus = get().gameStatus;
     if (newHand.length === 0) {
-      if (isNormalCard(card.value)) {
+      if (cards.every(card => isNormalCard(card.value))) {
         newGameStatus = 'humanWon';
         newLastAction = 'You won the game!';
       } else {
-        newHand.push(card);
-        newDiscardPile.pop();
+        // Can't win with special cards
         return;
       }
     }
@@ -118,7 +164,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastAction: newLastAction,
       currentPlayer: nextPlayer,
       turnCount: get().turnCount + 1,
-      gameStatus: newGameStatus
+      gameStatus: newGameStatus,
+      selectedCards: []
     });
     
     if (nextPlayer === 'ai' && newGameStatus === 'playing') {
@@ -129,16 +176,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   drawCard: () => {
     const { deck, humanHand, currentPlayer, pendingAction } = get();
     
-    // Only allow drawing if it's the human's turn and there are cards in the deck
     if (deck.length === 0 || currentPlayer !== 'human') return;
     
-    // Handle drawing multiple cards for pending draw actions
     const drawCount = pendingAction?.type === 'drawCards' ? pendingAction.count : 1;
     
-    // Check if we have enough cards in the deck
     if (deck.length < drawCount) return;
     
-    // Draw the required number of cards
     const newCards = deck.slice(0, drawCount);
     const newDeck = deck.slice(drawCount);
     const newHand = [...humanHand, ...newCards];
@@ -149,7 +192,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastAction: `You drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
       currentPlayer: 'ai',
       pendingAction: null,
-      drawCount: get().drawCount + drawCount
+      drawCount: get().drawCount + drawCount,
+      selectedCards: []
     });
     
     setTimeout(() => get().startAiTurn(), 1000);
@@ -169,43 +213,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let playableCards = aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
-        // AI tries to win if possible
-        if (aiHand.length === 1) {
-          const winningCard = playableCards.find(card => isNormalCard(card.value));
-          if (winningCard) {
-            playableCards = [winningCard];
+        // Group playable cards by value
+        const cardGroups = playableCards.reduce((groups, card) => {
+          const value = card.value;
+          if (!groups[value]) groups[value] = [];
+          groups[value].push(card);
+          return groups;
+        }, {} as Record<string, Card[]>);
+
+        // Prefer playing multiple cards if possible
+        let selectedCards: Card[] = [];
+        Object.values(cardGroups).forEach(group => {
+          if (group.length > selectedCards.length) {
+            selectedCards = group;
           }
+        });
+
+        // If no multiple cards, play a single card
+        if (selectedCards.length === 0) {
+          selectedCards = [playableCards[Math.floor(Math.random() * playableCards.length)]];
         }
+
+        const newAiHand = aiHand.filter(card => !selectedCards.some(c => c.id === card.id));
+        const newDiscardPile = [...discardPile, ...selectedCards];
         
-        const play = playableCards[Math.floor(Math.random() * playableCards.length)];
-        const cardIndex = aiHand.findIndex(c => c.id === play.id);
-        const newAiHand = [...aiHand.slice(0, cardIndex), ...aiHand.slice(cardIndex + 1)];
-        const newDiscardPile = [...discardPile, play];
-        
-        let newLastAction = `AI played ${play.value} of ${play.suit}`;
-        let nextPlayer: Player = 'human';
+        let newLastAction = `AI played ${selectedCards.length > 1 ? `${selectedCards.length} ${selectedCards[0].value}s` : `${selectedCards[0].value} of ${selectedCards[0].suit}`}`;
+        let nextPlayer: Player = selectedCards[0].value === 'J' ? 'ai' : 'human';
         let newPendingAction: PendingAction | null = null;
         
         // Handle AI playing special cards
-        if (play.value === 'A') {
+        if (selectedCards[0].value === 'A') {
           const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
           newPendingAction = {
             type: 'suitRequest',
             suit: requestedSuit
           };
           newLastAction += ` and requested ${requestedSuit}`;
-        } else if (play.value === '8' || play.value === 'Q') {
+        } else if (selectedCards[0].value === '8' || selectedCards[0].value === 'Q') {
           const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
           newPendingAction = {
             type: 'questionCard',
             suit: requestedSuit
           };
           newLastAction += ` and asked for ${requestedSuit}`;
+        } else if (selectedCards[0].value === '2' || selectedCards[0].value === '3') {
+          const totalDraws = selectedCards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
+          newPendingAction = {
+            type: 'drawCards',
+            count: totalDraws
+          };
+          newLastAction += ` - you must draw ${totalDraws} cards`;
         }
         
         let newGameStatus = get().gameStatus;
         if (newAiHand.length === 0) {
-          if (isNormalCard(play.value)) {
+          if (selectedCards.every(card => isNormalCard(card.value))) {
             newGameStatus = 'aiWon';
             newLastAction = 'AI won the game!';
           } else {
@@ -234,17 +296,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return;
         }
         
-        const newCard = deck[0];
-        const newDeck = deck.slice(1);
-        const newHand = [...aiHand, newCard];
+        const drawCount = pendingAction?.type === 'drawCards' ? pendingAction.count : 1;
+        const newCards = deck.slice(0, drawCount);
+        const newDeck = deck.slice(drawCount);
+        const newHand = [...aiHand, ...newCards];
         
         set({
           deck: newDeck,
           aiHand: newHand,
-          lastAction: 'AI drew a card',
+          lastAction: `AI drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
           currentPlayer: 'human',
           isAiThinking: false,
-          drawCount: get().drawCount + 1
+          drawCount: get().drawCount + drawCount,
+          pendingAction: null
         });
       }
     }, 1500);
