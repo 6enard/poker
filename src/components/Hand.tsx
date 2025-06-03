@@ -78,3 +78,5 @@ const Hand: React.FC<HandProps> = ({
     </div>
   );
 };
+
+export default Hand

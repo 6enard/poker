@@ -229,3 +229,5 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
     </motion.div>
   );
 };
+
+export default ActionSelector

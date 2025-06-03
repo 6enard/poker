@@ -85,3 +85,5 @@ const Card: React.FC<CardProps> = ({
     </motion.div>
   );
 };
+
+export default Card
