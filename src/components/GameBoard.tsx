@@ -137,6 +137,7 @@ const GameBoard: React.FC = () => {
     
     return (
       <div className="flex flex-col h-full">
+        {/* Game Header */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-6">
           {/* AI Hand */}
           <div className="flex justify-center">
@@ -162,8 +163,8 @@ const GameBoard: React.FC = () => {
           <div className="hidden md:block"></div>
         </div>
         
-        {/* Center Section */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* Game Board */}
+        <div className="flex-1 flex items-center justify-center min-h-[300px]">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-16">
             <div className="flex justify-center items-center">
               <Deck 
@@ -197,9 +198,10 @@ const GameBoard: React.FC = () => {
           </div>
         </div>
         
-        {/* Player Hand */}
-        <div className="mt-6 mb-32">
-          <div className="flex justify-center">
+        {/* Player Area */}
+        <div className="relative pb-24">
+          {/* Player's Hand */}
+          <div className="flex justify-center mb-20">
             <Hand 
               cards={humanHand} 
               isPlayable={isCardPlayable}
@@ -207,42 +209,42 @@ const GameBoard: React.FC = () => {
               title="Your Hand"
             />
           </div>
-        </div>
 
-        {/* Game Action Buttons */}
-        {currentPlayer === 'human' && !isAiThinking && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
-            <div className="container max-w-md mx-auto flex gap-4">
-              <motion.button
-                className="flex-1 py-3 px-4 bg-red-800 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleDrawCard}
-                disabled={deck.length === 0}
-              >
-                <Plus size={20} />
-                {pendingAction?.type === 'drawCards' 
-                  ? `Draw ${pendingAction.count} Cards` 
-                  : 'Draw Card'}
-              </motion.button>
-              <motion.button
-                className="flex-1 py-3 px-4 bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  const playableCard = humanHand.find(card => isCardPlayable(card));
-                  if (playableCard) {
-                    handleCardClick(playableCard);
-                  }
-                }}
-                disabled={!humanHand.some(card => isCardPlayable(card))}
-              >
-                <PlaySquare size={20} />
-                Play Card
-              </motion.button>
+          {/* Action Buttons */}
+          {currentPlayer === 'human' && !isAiThinking && (
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
+              <div className="container max-w-md mx-auto flex gap-4">
+                <motion.button
+                  className="flex-1 py-3 px-4 bg-red-800 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDrawCard}
+                  disabled={deck.length === 0}
+                >
+                  <Plus size={20} />
+                  {pendingAction?.type === 'drawCards' 
+                    ? `Draw ${pendingAction.count} Cards` 
+                    : 'Draw Card'}
+                </motion.button>
+                <motion.button
+                  className="flex-1 py-3 px-4 bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    const playableCard = humanHand.find(card => isCardPlayable(card));
+                    if (playableCard) {
+                      handleCardClick(playableCard);
+                    }
+                  }}
+                  disabled={!humanHand.some(card => isCardPlayable(card))}
+                >
+                  <PlaySquare size={20} />
+                  Play Card
+                </motion.button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
