@@ -88,9 +88,9 @@ export const canPlayCard = (card: Card, topCard: Card, pendingAction: PendingAct
   
   if (!topCard) return true;
   
-  // If there's a suit request from an Ace, must play that suit
+  // If there's a suit request from an Ace or King, must play that suit or another King
   if (pendingAction?.type === 'suitRequest') {
-    return card.suit === pendingAction.suit || card.value === 'A';
+    return card.suit === pendingAction.suit || (card.value === 'K');
   }
   
   // Can play if values match
