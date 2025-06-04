@@ -27,11 +27,12 @@ export interface GameState {
   lastNormalCard: Card | null;
   requiredSuit: Suit | null;
   lastDrawCard: Card | null;
+  questionEightPlayed: boolean;
 }
 
 export type CardAction = 
   | { type: "normal"; cards: Card[] }
-  |  { type: "ace"; requestedSuit: Suit | null }
+  | { type: "ace"; requestedSuit: Suit | null }
   | { type: "draw"; count: number; cards: Card[] }
   | { type: "question"; suit: Suit }
   | { type: "skip" }
