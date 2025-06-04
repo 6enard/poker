@@ -31,7 +31,6 @@ const initialState: GameState = {
   lastPlayedValue: null,
   lastNormalCard: null,
   requiredSuit: null,
-  arrangedCards: [],
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -89,8 +88,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // If there's a required suit, only allow cards of that suit or Aces
-    if (requiredSuit && card.suit !== requiredSuit && card.value !== 'A') {
+    // If there's a required suit from A, only allow cards of that suit
+    if (pendingAction?.type === 'suitRequest' && card.suit !== pendingAction.suit && card.value !== 'A') {
+      return;
+    }
+
+    // If Q or 8 was played, only allow cards of the required suit or another Q/8
+    if (requiredSuit && card.suit !== requiredSuit && card.value !== 'Q' && card.value !== '8') {
       return;
     }
 
@@ -113,7 +117,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const newSelectedCards = [...selectedCards, card];
         set({ 
           selectedCards: newSelectedCards,
-          arrangedCards: newSelectedCards // Initially arrange in selection order
+          arrangedCards: newSelectedCards
         });
       }
     }
@@ -136,12 +140,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     const topCard = discardPile[discardPile.length - 1];
 
-    // Aces are always playable
-    if (card.value === 'A') return true;
+    // If there's a required suit from A, only allow cards of that suit or another A
+    if (pendingAction?.type === 'suitRequest') {
+      return card.suit === pendingAction.suit || card.value === 'A';
+    }
 
-    // If there's a required suit, only allow cards of that suit
-    if (requiredSuit && card.suit !== requiredSuit) {
-      return false;
+    // If Q or 8 was played, only allow cards of the required suit or another Q/8
+    if (requiredSuit) {
+      return card.suit === requiredSuit || card.value === 'Q' || card.value === '8';
     }
 
     // If last played card was a J, only allow cards of the same value
@@ -162,10 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playCard: (cards: Card[], action: CardAction) => {
     const { humanHand, discardPile, lastNormalCard, arrangedCards } = get();
     
-    // Use arranged cards if available, otherwise use the cards as provided
     const cardsToPlay = arrangedCards.length > 0 ? arrangedCards : cards;
-    
-    // Remove played cards from hand
     const newHand = humanHand.filter(card => !cardsToPlay.some(c => c.id === card.id));
     const newDiscardPile = [...discardPile, ...cardsToPlay];
     
@@ -183,9 +186,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         suit: action.requestedSuit
       };
       newLastAction += ` and requested ${action.requestedSuit}`;
-      if (lastNormalCard) {
-        newLastAction += ` (continuing with ${lastNormalCard.value})`;
-      }
     } else if (action.type === 'draw') {
       const totalDraws = cardsToPlay.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
       newPendingAction = {
@@ -196,7 +196,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else if (cardsToPlay[0].value === 'J') {
       nextPlayer = 'human';
       newLastAction += ' - play again';
-    } else if (cardsToPlay[0].value === 'K') {
+    } else if (cardsToPlay[0].value === 'Q' || cardsToPlay[0].value === '8') {
       newRequiredSuit = cardsToPlay[0].suit;
       newLastAction += ` - next card must be ${cardsToPlay[0].suit}`;
     } else if (!isSpecialCard(cardsToPlay[0].value)) {
@@ -205,13 +205,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     let newGameStatus = get().gameStatus;
     if (newHand.length === 0) {
-      // Can win with multiple cards of the same normal value
       if (cardsToPlay.length > 1 && cardsToPlay.every(card => card.value === cardsToPlay[0].value && isNormalCard(card.value)) || 
           (cardsToPlay.length === 1 && isNormalCard(cardsToPlay[0].value))) {
         newGameStatus = 'humanWon';
         newLastAction = 'You won the game!';
       } else {
-        // Can't win with special cards
         return;
       }
     }
@@ -237,7 +235,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   drawCard: () => {
-    const { deck, humanHand, currentPlayer, pendingAction } = get();
+    const { deck, humanHand, currentPlayer, pendingAction, requiredSuit } = get();
     
     if (deck.length === 0 || currentPlayer !== 'human') return;
     
@@ -249,20 +247,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newDeck = deck.slice(drawCount);
     const newHand = [...humanHand, ...newCards];
     
+    // If drawing due to Q/8 requirement and none of the drawn cards match the suit,
+    // pass turn to opponent
+    const shouldPassTurn = requiredSuit && !newCards.some(card => 
+      card.suit === requiredSuit || card.value === 'Q' || card.value === '8'
+    );
+
+    // If drawing due to Ace requirement and none of the drawn cards match the suit,
+    // pass turn to opponent
+    const shouldPassTurnAce = pendingAction?.type === 'suitRequest' && 
+      !newCards.some(card => card.suit === pendingAction.suit || card.value === 'A');
+    
     set({
       deck: newDeck,
       humanHand: newHand,
       lastAction: `You drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
-      currentPlayer: 'ai',
-      pendingAction: null,
+      currentPlayer: shouldPassTurn || shouldPassTurnAce ? 'ai' : 'human',
+      pendingAction: shouldPassTurn || shouldPassTurnAce ? null : pendingAction,
       drawCount: get().drawCount + drawCount,
       selectedCards: [],
       arrangedCards: [],
       lastPlayedValue: null,
-      requiredSuit: null,
+      requiredSuit: shouldPassTurn ? null : requiredSuit,
     });
     
-    setTimeout(() => get().startAiTurn(), 500);
+    if ((shouldPassTurn || shouldPassTurnAce) && get().gameStatus === 'playing') {
+      setTimeout(() => get().startAiTurn(), 500);
+    }
   },
 
   setPendingAction: (action: PendingAction | null) => {
@@ -280,11 +291,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // If there's a draw cards pending action, only look for 2s and 3s
       let playableCards = pendingAction?.type === 'drawCards'
         ? aiHand.filter(card => card.value === '2' || card.value === '3')
-        : lastPlayedValue 
-          ? aiHand.filter(card => card.value === lastPlayedValue)
+        : pendingAction?.type === 'suitRequest'
+          ? aiHand.filter(card => card.suit === pendingAction.suit || card.value === 'A')
           : requiredSuit
-            ? aiHand.filter(card => card.suit === requiredSuit || card.value === 'A')
-            : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
+            ? aiHand.filter(card => card.suit === requiredSuit || card.value === 'Q' || card.value === '8')
+            : lastPlayedValue 
+              ? aiHand.filter(card => card.value === lastPlayedValue)
+              : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // Group playable cards by value
@@ -326,9 +339,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             suit: requestedSuit
           };
           newLastAction += ` and requested ${requestedSuit}`;
-          if (lastNormalCard) {
-            newLastAction += ` (continuing with ${lastNormalCard.value})`;
-          }
         } else if (selectedCards[0].value === '2' || selectedCards[0].value === '3') {
           const totalDraws = selectedCards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
           newPendingAction = {
@@ -338,7 +348,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastAction += ` - you must draw ${totalDraws} cards or counter`;
         } else if (selectedCards[0].value === 'J') {
           newLastAction += ' - AI plays again';
-        } else if (selectedCards[0].value === 'K') {
+        } else if (selectedCards[0].value === 'Q' || selectedCards[0].value === '8') {
           newRequiredSuit = selectedCards[0].suit;
           newLastAction += ` - next card must be ${selectedCards[0].suit}`;
         } else if (!isSpecialCard(selectedCards[0].value)) {
@@ -382,6 +392,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             isAiThinking: false,
             lastPlayedValue: null,
             requiredSuit: null,
+            pendingAction: null,
           });
           return;
         }
@@ -391,17 +402,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const newDeck = deck.slice(drawCount);
         const newHand = [...aiHand, ...newCards];
         
+        // Check if any drawn cards match the required suit for Q/8
+        const canPlayDrawnCard = requiredSuit && newCards.some(card => 
+          card.suit === requiredSuit || card.value === 'Q' || card.value === '8'
+        );
+
+        // Check if any drawn cards match the required suit for Ace
+        const canPlayDrawnCardAce = pendingAction?.type === 'suitRequest' && 
+          newCards.some(card => card.suit === pendingAction.suit || card.value === 'A');
+        
         set({
           deck: newDeck,
           aiHand: newHand,
           lastAction: `AI drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
-          currentPlayer: 'human',
+          currentPlayer: canPlayDrawnCard || canPlayDrawnCardAce ? 'ai' : 'human',
           isAiThinking: false,
           drawCount: get().drawCount + drawCount,
-          pendingAction: null,
+          pendingAction: canPlayDrawnCard || canPlayDrawnCardAce ? pendingAction : null,
           lastPlayedValue: null,
-          requiredSuit: null,
+          requiredSuit: canPlayDrawnCard ? requiredSuit : null,
         });
+
+        if ((canPlayDrawnCard || canPlayDrawnCardAce) && get().gameStatus === 'playing') {
+          setTimeout(() => get().startAiTurn(), 500);
+        }
       }
     }, 500);
   }
