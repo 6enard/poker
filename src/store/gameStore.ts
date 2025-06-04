@@ -96,6 +96,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { selectedCards, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
     const topCard = discardPile[discardPile.length - 1];
 
+    // Clear selection if selecting a different value
+    if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
+      set({ selectedCards: [] });
+    }
+
     if (selectedCards.find(c => c.id === card.id)) {
       set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
       return;
@@ -129,9 +134,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const isDrawCard = card.value === '2' || card.value === '3';
     const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
     
-    if ((isDrawCard && hasDrawCards) || (!isDrawCard && selectedCards.length === 0) || (selectedCards.length > 0 && selectedCards[0].value === card.value)) {
+    // Allow selecting multiple cards of the same value
+    if ((isDrawCard && hasDrawCards) || (!isDrawCard && (selectedCards.length === 0 || selectedCards[0].value === card.value))) {
       if (canPlayCard(card, topCard, pendingAction)) {
-        set({ selectedCards: [...selectedCards, card] });
+        // Add card to selection
+        const newSelection = [...selectedCards, card];
+        
+        // Sort selected cards to prioritize matching suit
+        const sortedSelection = newSelection.sort((a, b) => {
+          const aMatchesSuit = a.suit === topCard.suit ? -1 : 0;
+          const bMatchesSuit = b.suit === topCard.suit ? -1 : 0;
+          return aMatchesSuit - bMatchesSuit;
+        });
+        
+        set({ selectedCards: sortedSelection });
       }
     }
   },
@@ -366,7 +382,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         let selectedCards: Card[] = [];
         Object.values(cardGroups).forEach(group => {
           if (group.length > selectedCards.length) {
-            selectedCards = group;
+            // Sort cards to prioritize matching suit
+            const sortedGroup = [...group].sort((a, b) => {
+              const aMatchesSuit = a.suit === topCard.suit ? -1 : 0;
+              const bMatchesSuit = b.suit === topCard.suit ? -1 : 0;
+              return aMatchesSuit - bMatchesSuit;
+            });
+            selectedCards = sortedGroup;
           }
         });
 
