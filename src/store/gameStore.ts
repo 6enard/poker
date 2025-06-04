@@ -83,8 +83,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // If there's a required suit, only allow cards of that suit
-    if (requiredSuit && card.suit !== requiredSuit) {
+    // If there's a required suit, only allow cards of that suit or Aces
+    if (requiredSuit && card.suit !== requiredSuit && card.value !== 'A') {
       return;
     }
 
@@ -118,6 +118,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (currentPlayer !== 'human') return false;
     
     const topCard = discardPile[discardPile.length - 1];
+
+    // Aces are always playable
+    if (card.value === 'A') return true;
 
     // If there's a required suit, only allow cards of that suit
     if (requiredSuit && card.suit !== requiredSuit) {
@@ -163,12 +166,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (lastNormalCard) {
         newLastAction += ` (continuing with ${lastNormalCard.value})`;
       }
-    } else if (action.type === 'question') {
-      newPendingAction = {
-        type: 'questionCard',
-        suit: action.suit
-      };
-      newLastAction += ` and asked for ${action.suit}`;
     } else if (action.type === 'draw') {
       const totalDraws = cards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
       newPendingAction = {
@@ -256,13 +253,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     setTimeout(() => {
       const topCard = discardPile[discardPile.length - 1];
       
-      // If there's a draw cards pending action, only look for 2s, 3s, or Aces
+      // If there's a draw cards pending action, only look for 2s and 3s
       let playableCards = pendingAction?.type === 'drawCards'
         ? aiHand.filter(card => card.value === '2' || card.value === '3')
         : lastPlayedValue 
           ? aiHand.filter(card => card.value === lastPlayedValue)
           : requiredSuit
-            ? aiHand.filter(card => card.suit === requiredSuit)
+            ? aiHand.filter(card => card.suit === requiredSuit || card.value === 'A')
             : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
@@ -307,27 +304,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastAction += ` and requested ${requestedSuit}`;
           if (lastNormalCard) {
             newLastAction += ` (continuing with ${lastNormalCard.value})`;
-          }
-        } else if (selectedCards[0].value === '8' || selectedCards[0].value === 'Q') {
-          const sameSuitCards = aiHand.filter(card => 
-            card.suit === selectedCards[0].suit && 
-            card.id !== selectedCards[0].id
-          );
-          
-          if (sameSuitCards.length > 0) {
-            const followUpCard = sameSuitCards[Math.floor(Math.random() * sameSuitCards.length)];
-            newAiHand.splice(newAiHand.findIndex(c => c.id === followUpCard.id), 1);
-            newDiscardPile.push(followUpCard);
-            newLastAction += ` and followed with ${followUpCard.value} of ${followUpCard.suit}`;
-            if (!isSpecialCard(followUpCard.value)) {
-              newLastNormalCard = followUpCard;
-            }
-          } else {
-            newPendingAction = {
-              type: 'questionCard',
-              suit: selectedCards[0].suit
-            };
-            newLastAction += ` and asked for ${selectedCards[0].suit}`;
           }
         } else if (selectedCards[0].value === '2' || selectedCards[0].value === '3') {
           const totalDraws = selectedCards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
