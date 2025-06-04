@@ -184,6 +184,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else if (cardsToPlay[0].value === 'J') {
       nextPlayer = 'human';
       newLastAction += ' - play again';
+    } else if (cardsToPlay[0].value === 'Q') {
+      nextPlayer = 'human';
+      newRequiredSuit = cardsToPlay[0].suit;
+      newLastAction += ` - play a ${cardsToPlay[0].suit} card or another Q`;
+      newLastPlayedValue = 'Q';
     } else if (cardsToPlay[0].value === 'K') {
       newRequiredSuit = cardsToPlay[0].suit;
       newLastAction += ` - next card must be ${cardsToPlay[0].suit}`;
@@ -265,8 +270,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       let playableCards = pendingAction?.type === 'drawCards'
         ? aiHand.filter(card => card.value === '2' || card.value === '3')
-        : lastPlayedValue 
-          ? aiHand.filter(card => card.value === lastPlayedValue)
+        : lastPlayedValue === 'Q'
+          ? aiHand.filter(card => card.value === 'Q' || card.suit === topCard.suit)
           : requiredSuit
             ? aiHand.filter(card => card.suit === requiredSuit || card.value === 'A')
             : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
@@ -294,7 +299,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const newDiscardPile = [...discardPile, ...selectedCards];
         
         let newLastAction = `AI played ${selectedCards.length > 1 ? `${selectedCards.length} ${selectedCards[0].value}s` : `${selectedCards[0].value} of ${selectedCards[0].suit}`}`;
-        let nextPlayer: Player = selectedCards[0].value === 'J' ? 'ai' : 'human';
+        let nextPlayer: Player = selectedCards[0].value === 'J' || selectedCards[0].value === 'Q' ? 'ai' : 'human';
         let newPendingAction: PendingAction | null = null;
         let newLastPlayedValue: string | null = null;
         let newLastNormalCard = lastNormalCard;
@@ -319,6 +324,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastAction += ` - you must draw ${totalDraws} cards or counter`;
         } else if (selectedCards[0].value === 'J') {
           newLastAction += ' - AI plays again';
+        } else if (selectedCards[0].value === 'Q') {
+          newRequiredSuit = selectedCards[0].suit;
+          newLastAction += ` - AI must play a ${selectedCards[0].suit} card or another Q`;
+          newLastPlayedValue = 'Q';
         } else if (selectedCards[0].value === 'K') {
           newRequiredSuit = selectedCards[0].suit;
           newLastAction += ` - next card must be ${selectedCards[0].suit}`;
