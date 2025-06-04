@@ -31,7 +31,7 @@ const initialState: GameState = {
   lastPlayedValue: null,
   lastNormalCard: null,
   requiredSuit: null,
-  arrangedCards: [],
+  lastDrawCard: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -64,7 +64,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastPlayedValue: null,
       lastNormalCard: startCard,
       requiredSuit: null,
-      arrangedCards: [],
+      lastDrawCard: null,
     });
 
     if (get().currentPlayer === 'ai') {
@@ -151,7 +151,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   playCard: (cards: Card[], action: CardAction) => {
-    const { humanHand, discardPile, lastNormalCard, arrangedCards } = get();
+    const { humanHand, discardPile, lastNormalCard, arrangedCards, lastDrawCard } = get();
     
     const cardsToPlay = arrangedCards.length > 0 ? arrangedCards : cards;
     
@@ -164,15 +164,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let newLastPlayedValue: string | null = null;
     let newLastNormalCard = lastNormalCard;
     let newRequiredSuit: Suit | null = null;
+    let newLastDrawCard = lastDrawCard;
     
     if (action.type === 'ace') {
-      newPendingAction = {
-        type: 'suitRequest',
-        suit: action.requestedSuit
-      };
-      newLastAction += ` and requested ${action.requestedSuit}`;
-      if (lastNormalCard) {
-        newLastAction += ` (continuing with ${lastNormalCard.value})`;
+      if (lastDrawCard) {
+        // When countering a draw card with Ace, keep the original suit requirement
+        newRequiredSuit = lastDrawCard.suit;
+        newLastAction += ` to counter the draw cards`;
+      } else if (action.requestedSuit) {
+        newPendingAction = {
+          type: 'suitRequest',
+          suit: action.requestedSuit
+        };
+        newLastAction += ` and requested ${action.requestedSuit}`;
+        if (lastNormalCard) {
+          newLastAction += ` (continuing with ${lastNormalCard.value})`;
+        }
       }
     } else if (action.type === 'draw') {
       const totalDraws = cardsToPlay.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
@@ -180,6 +187,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         type: 'drawCards',
         count: totalDraws
       };
+      newLastDrawCard = cardsToPlay[0];
       newLastAction += ` - opponent must draw ${totalDraws} cards or counter`;
     } else if (cardsToPlay[0].value === 'J') {
       nextPlayer = 'human';
@@ -194,6 +202,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newLastAction += ` - next card must be ${cardsToPlay[0].suit}`;
     } else if (!isSpecialCard(cardsToPlay[0].value)) {
       newLastNormalCard = cardsToPlay[0];
+      newLastDrawCard = null;
     }
     
     let newGameStatus = get().gameStatus;
@@ -220,6 +229,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastPlayedValue: newLastPlayedValue,
       lastNormalCard: newLastNormalCard,
       requiredSuit: newRequiredSuit,
+      lastDrawCard: newLastDrawCard,
     });
     
     if (nextPlayer === 'ai' && newGameStatus === 'playing') {
@@ -251,6 +261,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       arrangedCards: [],
       lastPlayedValue: null,
       requiredSuit: null,
+      lastDrawCard: null,
     });
     
     setTimeout(() => get().startAiTurn(), 500);
@@ -261,7 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startAiTurn: () => {
-    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue, lastNormalCard, requiredSuit } = get();
+    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue, lastNormalCard, requiredSuit, lastDrawCard } = get();
     
     set({ isAiThinking: true });
     
@@ -269,7 +280,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const topCard = discardPile[discardPile.length - 1];
       
       let playableCards = pendingAction?.type === 'drawCards'
-        ? aiHand.filter(card => card.value === '2' || card.value === '3')
+        ? aiHand.filter(card => card.value === '2' || card.value === '3' || card.value === 'A')
         : lastPlayedValue === 'Q'
           ? aiHand.filter(card => card.value === 'Q' || card.suit === topCard.suit)
           : requiredSuit
@@ -304,16 +315,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
         let newLastPlayedValue: string | null = null;
         let newLastNormalCard = lastNormalCard;
         let newRequiredSuit: Suit | null = null;
+        let newLastDrawCard = lastDrawCard;
         
         if (selectedCards[0].value === 'A') {
-          const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
-          newPendingAction = {
-            type: 'suitRequest',
-            suit: requestedSuit
-          };
-          newLastAction += ` and requested ${requestedSuit}`;
-          if (lastNormalCard) {
-            newLastAction += ` (continuing with ${lastNormalCard.value})`;
+          if (lastDrawCard) {
+            // When countering a draw card with Ace, keep the original suit requirement
+            newRequiredSuit = lastDrawCard.suit;
+            newLastAction += ` to counter the draw cards`;
+          } else {
+            const requestedSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
+            newPendingAction = {
+              type: 'suitRequest',
+              suit: requestedSuit
+            };
+            newLastAction += ` and requested ${requestedSuit}`;
+            if (lastNormalCard) {
+              newLastAction += ` (continuing with ${lastNormalCard.value})`;
+            }
           }
         } else if (selectedCards[0].value === '2' || selectedCards[0].value === '3') {
           const totalDraws = selectedCards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
@@ -321,6 +339,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             type: 'drawCards',
             count: totalDraws
           };
+          newLastDrawCard = selectedCards[0];
           newLastAction += ` - you must draw ${totalDraws} cards or counter`;
         } else if (selectedCards[0].value === 'J') {
           newLastAction += ' - AI plays again';
@@ -333,6 +352,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastAction += ` - next card must be ${selectedCards[0].suit}`;
         } else if (!isSpecialCard(selectedCards[0].value)) {
           newLastNormalCard = selectedCards[0];
+          newLastDrawCard = null;
         }
         
         let newGameStatus = get().gameStatus;
@@ -358,6 +378,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           lastPlayedValue: newLastPlayedValue,
           lastNormalCard: newLastNormalCard,
           requiredSuit: newRequiredSuit,
+          lastDrawCard: newLastDrawCard,
         });
 
         if (nextPlayer === 'ai' && newGameStatus === 'playing') {
@@ -371,6 +392,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             isAiThinking: false,
             lastPlayedValue: null,
             requiredSuit: null,
+            lastDrawCard: null,
           });
           return;
         }
@@ -390,6 +412,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           pendingAction: null,
           lastPlayedValue: null,
           requiredSuit: null,
+          lastDrawCard: null,
         });
       }
     }, 500);

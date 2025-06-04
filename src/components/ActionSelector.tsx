@@ -17,6 +17,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
 }) => {
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
   const selectedCards = useGameStore(state => state.selectedCards);
+  const pendingAction = useGameStore(state => state.pendingAction);
   
   const handleAction = (action: CardAction) => {
     onAction(selectedCards.length > 0 ? selectedCards : [card], action);
@@ -65,9 +66,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
             whileTap={selectedSuit ? { scale: 0.95 } : {}}
             onClick={() => {
               if (selectedSuit) {
-                if (card.value === 'A') {
-                  handleAction({ type: 'ace', requestedSuit: selectedSuit });
-                }
+                handleAction({ type: 'ace', requestedSuit: selectedSuit });
               }
             }}
             disabled={!selectedSuit}
@@ -85,6 +84,35 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
     
     switch (value) {
       case 'A':
+        // If there's a pending draw action, play Ace without suit selection
+        if (pendingAction?.type === 'drawCards') {
+          return (
+            <div className="flex flex-col gap-3 items-center">
+              <h3 className="text-lg font-medium">Counter Draw Attack</h3>
+              <p className="text-sm text-gray-600">Play Ace to counter the draw cards</p>
+              
+              <div className="flex justify-center gap-3 mt-2">
+                <motion.button
+                  className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onCancel}
+                >
+                  Cancel
+                </motion.button>
+                
+                <motion.button
+                  className="px-4 py-2 bg-blue-600 rounded-md text-white"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleAction({ type: 'ace', requestedSuit: null })}
+                >
+                  Confirm
+                </motion.button>
+              </div>
+            </div>
+          );
+        }
         return renderSuitSelector();
         
       case '2':
