@@ -213,8 +213,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newLastPlayedValue = cardsToPlay[0].value;
       newQuestionEightPlayed = true;
     } else if (cardsToPlay[0].value === 'K') {
+      newPendingAction = {
+        type: 'suitRequest',
+        suit: cardsToPlay[0].suit
+      };
       newRequiredSuit = cardsToPlay[0].suit;
-      newLastAction += ` - next card must be ${cardsToPlay[0].suit}`;
+      newLastAction += ` - next card must be ${cardsToPlay[0].suit} or another King`;
     } else if (!isSpecialCard(cardsToPlay[0].value)) {
       newLastNormalCard = cardsToPlay[0];
       newLastDrawCard = null;
@@ -459,3 +463,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }, 500);
   }
 }));
+
+export { useGameStore }
