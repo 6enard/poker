@@ -79,7 +79,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   toggleCardSelection: (card: Card) => {
-    const { selectedCards, humanHand, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
+    const { selectedCards, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
     const topCard = discardPile[discardPile.length - 1];
 
     if (selectedCards.find(c => c.id === card.id)) {
@@ -95,15 +95,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // If there's a required suit from an Ace, only allow that suit or another Ace
     if (requiredSuit && card.suit !== requiredSuit && card.value !== 'A') {
+      // Allow Q or 8 if the last card was a Q
+      if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
+        set({ selectedCards: [card] });
+        return;
+      }
       return;
     }
 
     if (lastPlayedValue) {
-      if (card.value !== lastPlayedValue && card.value !== 'A') return;
-    }
-
-    if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
-      return;
+      // Allow matching value, Ace, or Q/8 if last card was Q
+      if (card.value !== lastPlayedValue && 
+          card.value !== 'A' && 
+          !(topCard.value === 'Q' && (card.value === 'Q' || card.value === '8'))) {
+        return;
+      }
     }
 
     const isDrawCard = card.value === '2' || card.value === '3';
@@ -135,7 +141,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // If there's a required suit from an Ace, only allow that suit or another Ace
     if (requiredSuit) {
+      // Allow Q or 8 if the last card was Q
+      if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
+        return true;
+      }
       return card.suit === requiredSuit || card.value === 'A';
+    }
+
+    // For Queen, allow matching suit, another Queen, or Eight
+    if (topCard.value === 'Q') {
+      return card.suit === topCard.suit || card.value === 'Q' || card.value === '8';
     }
 
     if (lastPlayedValue) {
@@ -194,7 +209,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else if (cardsToPlay[0].value === '8' || cardsToPlay[0].value === 'Q') {
       nextPlayer = 'human';
       newRequiredSuit = cardsToPlay[0].suit;
-      newLastAction += ` - play a ${cardsToPlay[0].suit} card or another ${cardsToPlay[0].value}`;
+      newLastAction += ` - play a ${cardsToPlay[0].suit} card, another ${cardsToPlay[0].value}, or an 8`;
       newLastPlayedValue = cardsToPlay[0].value;
       newQuestionEightPlayed = true;
     } else if (cardsToPlay[0].value === 'K') {
@@ -288,8 +303,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let playableCards = pendingAction?.type === 'drawCards'
         ? aiHand.filter(card => card.value === '2' || card.value === '3' || card.value === 'A')
         : requiredSuit
-          ? aiHand.filter(card => card.suit === requiredSuit || card.value === 'A')
-          : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
+          ? aiHand.filter(card => {
+              // Allow Q or 8 if last card was Q
+              if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
+                return true;
+              }
+              return card.suit === requiredSuit || card.value === 'A';
+            })
+          : topCard.value === 'Q'
+            ? aiHand.filter(card => card.suit === topCard.suit || card.value === 'Q' || card.value === '8')
+            : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // Prioritize playing an Ace if available
@@ -355,7 +378,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         } else if (selectedCards[0].value === '8' || selectedCards[0].value === 'Q') {
           nextPlayer = 'ai';
           newRequiredSuit = selectedCards[0].suit;
-          newLastAction += ` - AI must play a ${selectedCards[0].suit} card or another ${selectedCards[0].value}`;
+          newLastAction += ` - AI must play a ${selectedCards[0].suit} card, another ${selectedCards[0].value}, or an 8`;
           newLastPlayedValue = selectedCards[0].value;
           newQuestionEightPlayed = true;
         } else if (selectedCards[0].value === 'K') {
