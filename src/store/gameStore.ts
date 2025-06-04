@@ -35,6 +35,20 @@ const initialState: GameState = {
   questionEightPlayed: false
 };
 
+const reshuffleDeck = (discardPile: Card[]): { newDeck: Card[], newDiscardPile: Card[] } => {
+  // Keep the top card
+  const topCard = discardPile[discardPile.length - 1];
+  // Get all other cards to reshuffle
+  const cardsToShuffle = discardPile.slice(0, -1);
+  // Shuffle the remaining cards
+  const newDeck = shuffleDeck(cardsToShuffle);
+  // Return new deck and discard pile with only the top card
+  return {
+    newDeck,
+    newDiscardPile: [topCard]
+  };
+};
+
 export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
@@ -263,24 +277,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   drawCard: () => {
-    const { deck, humanHand, currentPlayer, pendingAction, requiredSuit } = get();
+    const { deck, humanHand, currentPlayer, pendingAction, requiredSuit, discardPile } = get();
     
-    if (deck.length === 0 || currentPlayer !== 'human') return;
+    if (currentPlayer !== 'human') return;
     
     const drawCount = pendingAction?.type === 'drawCards' ? pendingAction.count : 1;
     
-    if (deck.length < drawCount) return;
+    // If deck is empty, reshuffle discard pile
+    let newDeck = [...deck];
+    let newDiscardPile = [...discardPile];
     
-    const newCards = deck.slice(0, drawCount);
-    const newDeck = deck.slice(drawCount);
+    if (newDeck.length < drawCount && newDiscardPile.length > 1) {
+      const { newDeck: reshuffledDeck, newDiscardPile: updatedDiscardPile } = reshuffleDeck(newDiscardPile);
+      newDeck = reshuffledDeck;
+      newDiscardPile = updatedDiscardPile;
+    }
+    
+    // If still not enough cards after reshuffling, return
+    if (newDeck.length < drawCount) return;
+    
+    const newCards = newDeck.slice(0, drawCount);
+    const remainingDeck = newDeck.slice(drawCount);
     const newHand = [...humanHand, ...newCards];
     
     // Only clear requiredSuit if we're not drawing due to a draw cards action
     const newRequiredSuit = pendingAction?.type === 'drawCards' ? requiredSuit : null;
     
     set({
-      deck: newDeck,
+      deck: remainingDeck,
       humanHand: newHand,
+      discardPile: newDiscardPile,
       lastAction: `You drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
       currentPlayer: 'ai',
       pendingAction: null,
@@ -441,7 +467,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
           setTimeout(() => get().startAiTurn(), 500);
         }
       } else {
-        if (deck.length === 0) {
+        // Check if we need to reshuffle
+        let newDeck = [...deck];
+        let newDiscardPile = [...discardPile];
+        
+        if (newDeck.length === 0 && newDiscardPile.length > 1) {
+          const { newDeck: reshuffledDeck, newDiscardPile: updatedDiscardPile } = reshuffleDeck(newDiscardPile);
+          newDeck = reshuffledDeck;
+          newDiscardPile = updatedDiscardPile;
+        }
+        
+        if (newDeck.length === 0) {
           set({
             lastAction: 'AI tried to draw but the deck is empty',
             currentPlayer: 'human',
@@ -455,16 +491,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
         
         const drawCount = pendingAction?.type === 'drawCards' ? pendingAction.count : 1;
-        const newCards = deck.slice(0, drawCount);
-        const newDeck = deck.slice(drawCount);
+        const newCards = newDeck.slice(0, drawCount);
+        const remainingDeck = newDeck.slice(drawCount);
         const newHand = [...aiHand, ...newCards];
         
         // Only clear requiredSuit if we're not drawing due to a draw cards action
         const newRequiredSuit = pendingAction?.type === 'drawCards' ? requiredSuit : null;
         
         set({
-          deck: newDeck,
+          deck: remainingDeck,
           aiHand: newHand,
+          discardPile: newDiscardPile,
           lastAction: `AI drew ${drawCount} card${drawCount > 1 ? 's' : ''}`,
           currentPlayer: 'human',
           isAiThinking: false,
