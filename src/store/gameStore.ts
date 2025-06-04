@@ -94,7 +94,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // If there's a required suit from an Ace, only allow that suit or another Ace
-    if (requiredSuit && card.suit !== requiredSuit && card.value !== 'A') {
+    if (requiredSuit && card.suit !== requiredSuit && card.value !== 'A' && card.value !== 'K') {
       // Allow Q or 8 if the last card was a Q
       if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
         set({ selectedCards: [card] });
@@ -139,13 +139,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Ace can always be played
     if (card.value === 'A') return true;
 
-    // If there's a required suit from an Ace, only allow that suit or another Ace
+    // If there's a required suit from an Ace or King, only allow that suit, another Ace, or another King
     if (requiredSuit) {
       // Allow Q or 8 if the last card was Q
       if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
         return true;
       }
-      return card.suit === requiredSuit || card.value === 'A';
+      return card.suit === requiredSuit || card.value === 'A' || card.value === 'K';
     }
 
     // For Queen, allow matching suit, another Queen, or Eight
@@ -312,7 +312,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               if (topCard.value === 'Q' && (card.value === 'Q' || card.value === '8')) {
                 return true;
               }
-              return card.suit === requiredSuit || card.value === 'A';
+              return card.suit === requiredSuit || card.value === 'A' || card.value === 'K';
             })
           : topCard.value === 'Q'
             ? aiHand.filter(card => card.suit === topCard.suit || card.value === 'Q' || card.value === '8')
@@ -386,8 +386,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastPlayedValue = selectedCards[0].value;
           newQuestionEightPlayed = true;
         } else if (selectedCards[0].value === 'K') {
+          newPendingAction = {
+            type: 'suitRequest',
+            suit: selectedCards[0].suit
+          };
           newRequiredSuit = selectedCards[0].suit;
-          newLastAction += ` - next card must be ${selectedCards[0].suit}`;
+          newLastAction += ` - next card must be ${selectedCards[0].suit} or another King`;
         } else if (!isSpecialCard(selectedCards[0].value)) {
           newLastNormalCard = selectedCards[0];
           newLastDrawCard = null;
