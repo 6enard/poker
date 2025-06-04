@@ -25,6 +25,7 @@ export interface GameState {
   selectedCards: Card[];
   lastPlayedValue: string | null;
   lastNormalCard: Card | null;
+  requiredSuit: Suit | null;
 }
 
 export type CardAction = 

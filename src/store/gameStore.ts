@@ -29,6 +29,7 @@ const initialState: GameState = {
   selectedCards: [],
   lastPlayedValue: null,
   lastNormalCard: null,
+  requiredSuit: null,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -60,10 +61,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedCards: [],
       lastPlayedValue: null,
       lastNormalCard: startCard,
+      requiredSuit: null,
     });
 
     if (get().currentPlayer === 'ai') {
-      setTimeout(() => get().startAiTurn(), 1000);
+      setTimeout(() => get().startAiTurn(), 500);
     }
   },
 
@@ -72,12 +74,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   toggleCardSelection: (card: Card) => {
-    const { selectedCards, humanHand, discardPile, pendingAction, lastPlayedValue } = get();
+    const { selectedCards, humanHand, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
     const topCard = discardPile[discardPile.length - 1];
 
     // If card is already selected, remove it
     if (selectedCards.find(c => c.id === card.id)) {
       set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
+      return;
+    }
+
+    // If there's a required suit, only allow cards of that suit
+    if (requiredSuit && card.suit !== requiredSuit) {
       return;
     }
 
@@ -107,10 +114,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   isCardPlayable: (card: Card) => {
-    const { discardPile, pendingAction, currentPlayer, selectedCards, lastPlayedValue } = get();
+    const { discardPile, pendingAction, currentPlayer, selectedCards, lastPlayedValue, requiredSuit } = get();
     if (currentPlayer !== 'human') return false;
     
     const topCard = discardPile[discardPile.length - 1];
+
+    // If there's a required suit, only allow cards of that suit
+    if (requiredSuit && card.suit !== requiredSuit) {
+      return false;
+    }
 
     // If last played card was a J, only allow cards of the same value
     if (lastPlayedValue) {
@@ -135,20 +147,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newDiscardPile = [...discardPile, ...cards];
     
     let newLastAction = `You played ${cards.length > 1 ? `${cards.length} ${cards[0].value}s` : `${cards[0].value} of ${cards[0].suit}`}`;
-    let nextPlayer: Player = cards[0].value === 'J' ? 'human' : 'ai';
+    let nextPlayer: Player = 'ai';
     let newPendingAction: PendingAction | null = null;
-    let newLastPlayedValue: string | null = cards[0].value === 'J' ? cards[0].value : null;
+    let newLastPlayedValue: string | null = null;
     let newLastNormalCard = lastNormalCard;
+    let newRequiredSuit: Suit | null = null;
     
     // Handle special card actions
     if (action.type === 'ace') {
-      // When an Ace is played, the game continues with the value of the card below it
       newPendingAction = {
         type: 'suitRequest',
         suit: action.requestedSuit
       };
       newLastAction += ` and requested ${action.requestedSuit}`;
-      // The game continues with the last normal card's value
       if (lastNormalCard) {
         newLastAction += ` (continuing with ${lastNormalCard.value})`;
       }
@@ -166,9 +177,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       newLastAction += ` - opponent must draw ${totalDraws} cards or counter`;
     } else if (cards[0].value === 'J') {
-      newLastAction += ' - play another J';
+      nextPlayer = 'human';
+      newLastAction += ' - play again';
+    } else if (cards[0].value === 'K') {
+      newRequiredSuit = cards[0].suit;
+      newLastAction += ` - next card must be ${cards[0].suit}`;
     } else if (!isSpecialCard(cards[0].value)) {
-      // Update last normal card when a non-special card is played
       newLastNormalCard = cards[0];
     }
     
@@ -194,10 +208,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedCards: [],
       lastPlayedValue: newLastPlayedValue,
       lastNormalCard: newLastNormalCard,
+      requiredSuit: newRequiredSuit,
     });
     
     if (nextPlayer === 'ai' && newGameStatus === 'playing') {
-      setTimeout(() => get().startAiTurn(), 1000);
+      setTimeout(() => get().startAiTurn(), 500);
     }
   },
 
@@ -223,9 +238,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       drawCount: get().drawCount + drawCount,
       selectedCards: [],
       lastPlayedValue: null,
+      requiredSuit: null,
     });
     
-    setTimeout(() => get().startAiTurn(), 1000);
+    setTimeout(() => get().startAiTurn(), 500);
   },
 
   setPendingAction: (action: PendingAction | null) => {
@@ -233,7 +249,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startAiTurn: () => {
-    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue, lastNormalCard } = get();
+    const { aiHand, discardPile, deck, pendingAction, lastPlayedValue, lastNormalCard, requiredSuit } = get();
     
     set({ isAiThinking: true });
     
@@ -242,10 +258,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       // If there's a draw cards pending action, only look for 2s, 3s, or Aces
       let playableCards = pendingAction?.type === 'drawCards'
-        ? aiHand.filter(card => card.value === '2' || card.value === '3' || card.value === 'A')
+        ? aiHand.filter(card => card.value === '2' || card.value === '3')
         : lastPlayedValue 
           ? aiHand.filter(card => card.value === lastPlayedValue)
-          : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
+          : requiredSuit
+            ? aiHand.filter(card => card.suit === requiredSuit)
+            : aiHand.filter(card => canPlayCard(card, topCard, pendingAction));
       
       if (playableCards.length > 0) {
         // Group playable cards by value
@@ -275,8 +293,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         let newLastAction = `AI played ${selectedCards.length > 1 ? `${selectedCards.length} ${selectedCards[0].value}s` : `${selectedCards[0].value} of ${selectedCards[0].suit}`}`;
         let nextPlayer: Player = selectedCards[0].value === 'J' ? 'ai' : 'human';
         let newPendingAction: PendingAction | null = null;
-        let newLastPlayedValue: string | null = selectedCards[0].value === 'J' ? selectedCards[0].value : null;
+        let newLastPlayedValue: string | null = null;
         let newLastNormalCard = lastNormalCard;
+        let newRequiredSuit: Suit | null = null;
         
         // Handle AI playing special cards
         if (selectedCards[0].value === 'A') {
@@ -319,6 +338,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newLastAction += ` - you must draw ${totalDraws} cards or counter`;
         } else if (selectedCards[0].value === 'J') {
           newLastAction += ' - AI plays again';
+        } else if (selectedCards[0].value === 'K') {
+          newRequiredSuit = selectedCards[0].suit;
+          newLastAction += ` - next card must be ${selectedCards[0].suit}`;
         } else if (!isSpecialCard(selectedCards[0].value)) {
           newLastNormalCard = selectedCards[0];
         }
@@ -344,10 +366,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           isAiThinking: false,
           lastPlayedValue: newLastPlayedValue,
           lastNormalCard: newLastNormalCard,
+          requiredSuit: newRequiredSuit,
         });
 
         if (nextPlayer === 'ai' && newGameStatus === 'playing') {
-          setTimeout(() => get().startAiTurn(), 1000);
+          setTimeout(() => get().startAiTurn(), 500);
         }
       } else {
         // AI must draw a card
@@ -357,6 +380,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             currentPlayer: 'human',
             isAiThinking: false,
             lastPlayedValue: null,
+            requiredSuit: null,
           });
           return;
         }
@@ -375,8 +399,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           drawCount: get().drawCount + drawCount,
           pendingAction: null,
           lastPlayedValue: null,
+          requiredSuit: null,
         });
       }
-    }, 1500);
+    }, 500);
   }
 }));
