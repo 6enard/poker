@@ -167,7 +167,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   playCard: (cards: Card[], action: CardAction) => {
-    const { humanHand, discardPile, lastNormalCard, selectedCards, lastDrawCard } = get();
+    const { humanHand, discardPile, lastNormalCard, selectedCards, lastDrawCard, requiredSuit } = get();
     
     const cardsToPlay = selectedCards.length > 0 ? selectedCards : cards;
     
@@ -226,8 +226,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     let newGameStatus = get().gameStatus;
     if (newHand.length === 0) {
-      if (cardsToPlay.length > 1 && cardsToPlay.every(card => card.value === cardsToPlay[0].value && isNormalCard(card.value)) || 
-          (cardsToPlay.length === 1 && isNormalCard(cardsToPlay[0].value))) {
+      // Updated winning condition to allow winning with a matching suit
+      const isValidWin = 
+        (cardsToPlay.length > 1 && cardsToPlay.every(card => card.value === cardsToPlay[0].value && isNormalCard(card.value))) ||
+        (cardsToPlay.length === 1 && isNormalCard(cardsToPlay[0].value)) ||
+        (requiredSuit && cardsToPlay[0].suit === requiredSuit) ||
+        (discardPile.length > 0 && cardsToPlay[0].value === discardPile[discardPile.length - 1].value);
+      
+      if (isValidWin) {
         newGameStatus = 'humanWon';
         newLastAction = 'You won the game!';
       } else {
@@ -400,8 +406,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         
         let newGameStatus = get().gameStatus;
         if (newAiHand.length === 0) {
-          if (selectedCards.length > 1 && selectedCards.every(card => card.value === selectedCards[0].value && isNormalCard(card.value)) ||
-              (selectedCards.length === 1 && isNormalCard(selectedCards[0].value))) {
+          // Updated winning condition for AI to match human's conditions
+          const isValidWin = 
+            (selectedCards.length > 1 && selectedCards.every(card => card.value === selectedCards[0].value && isNormalCard(card.value))) ||
+            (selectedCards.length === 1 && isNormalCard(selectedCards[0].value)) ||
+            (requiredSuit && selectedCards[0].suit === requiredSuit) ||
+            (discardPile.length > 0 && selectedCards[0].value === discardPile[discardPile.length - 1].value);
+          
+          if (isValidWin) {
             newGameStatus = 'aiWon';
             newLastAction = 'AI won the game!';
           } else {
@@ -466,4 +478,4 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }, 500);
   }
-}))
+}));
