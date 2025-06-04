@@ -12,6 +12,7 @@ interface GameStore extends GameState {
   isCardPlayable: (card: Card) => boolean;
   toggleCardSelection: (card: Card) => void;
   clearSelectedCards: () => void;
+  arrangeCards: (cards: Card[]) => void;
 }
 
 const initialState: GameState = {
@@ -30,6 +31,7 @@ const initialState: GameState = {
   lastPlayedValue: null,
   lastNormalCard: null,
   requiredSuit: null,
+  arrangedCards: [],
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -62,6 +64,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastPlayedValue: null,
       lastNormalCard: startCard,
       requiredSuit: null,
+      arrangedCards: [],
     });
 
     if (get().currentPlayer === 'ai') {
@@ -79,7 +82,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // If card is already selected, remove it
     if (selectedCards.find(c => c.id === card.id)) {
-      set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
+      set({ 
+        selectedCards: selectedCards.filter(c => c.id !== card.id),
+        arrangedCards: get().arrangedCards.filter(c => c.id !== card.id)
+      });
       return;
     }
 
@@ -104,13 +110,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     if ((isDrawCard && hasDrawCards) || (!isDrawCard && selectedCards.length === 0) || (selectedCards.length > 0 && selectedCards[0].value === card.value)) {
       if (canPlayCard(card, topCard, pendingAction)) {
-        set({ selectedCards: [...selectedCards, card] });
+        const newSelectedCards = [...selectedCards, card];
+        set({ 
+          selectedCards: newSelectedCards,
+          arrangedCards: newSelectedCards // Initially arrange in selection order
+        });
       }
     }
   },
 
+  arrangeCards: (cards: Card[]) => {
+    set({ arrangedCards: cards });
+  },
+
   clearSelectedCards: () => {
-    set({ selectedCards: [] });
+    set({ 
+      selectedCards: [],
+      arrangedCards: []
+    });
   },
 
   isCardPlayable: (card: Card) => {
@@ -143,13 +160,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   playCard: (cards: Card[], action: CardAction) => {
-    const { humanHand, discardPile, lastNormalCard } = get();
+    const { humanHand, discardPile, lastNormalCard, arrangedCards } = get();
+    
+    // Use arranged cards if available, otherwise use the cards as provided
+    const cardsToPlay = arrangedCards.length > 0 ? arrangedCards : cards;
     
     // Remove played cards from hand
-    const newHand = humanHand.filter(card => !cards.some(c => c.id === card.id));
-    const newDiscardPile = [...discardPile, ...cards];
+    const newHand = humanHand.filter(card => !cardsToPlay.some(c => c.id === card.id));
+    const newDiscardPile = [...discardPile, ...cardsToPlay];
     
-    let newLastAction = `You played ${cards.length > 1 ? `${cards.length} ${cards[0].value}s` : `${cards[0].value} of ${cards[0].suit}`}`;
+    let newLastAction = `You played ${cardsToPlay.length > 1 ? `${cardsToPlay.length} ${cardsToPlay[0].value}s` : `${cardsToPlay[0].value} of ${cardsToPlay[0].suit}`}`;
     let nextPlayer: Player = 'ai';
     let newPendingAction: PendingAction | null = null;
     let newLastPlayedValue: string | null = null;
@@ -167,25 +187,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
         newLastAction += ` (continuing with ${lastNormalCard.value})`;
       }
     } else if (action.type === 'draw') {
-      const totalDraws = cards.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
+      const totalDraws = cardsToPlay.reduce((sum, card) => sum + (card.value === '2' ? 2 : 3), 0);
       newPendingAction = {
         type: 'drawCards',
         count: totalDraws
       };
       newLastAction += ` - opponent must draw ${totalDraws} cards or counter`;
-    } else if (cards[0].value === 'J') {
+    } else if (cardsToPlay[0].value === 'J') {
       nextPlayer = 'human';
       newLastAction += ' - play again';
-    } else if (cards[0].value === 'K') {
-      newRequiredSuit = cards[0].suit;
-      newLastAction += ` - next card must be ${cards[0].suit}`;
-    } else if (!isSpecialCard(cards[0].value)) {
-      newLastNormalCard = cards[0];
+    } else if (cardsToPlay[0].value === 'K') {
+      newRequiredSuit = cardsToPlay[0].suit;
+      newLastAction += ` - next card must be ${cardsToPlay[0].suit}`;
+    } else if (!isSpecialCard(cardsToPlay[0].value)) {
+      newLastNormalCard = cardsToPlay[0];
     }
     
     let newGameStatus = get().gameStatus;
     if (newHand.length === 0) {
-      if (cards.every(card => isNormalCard(card.value))) {
+      // Can win with multiple cards of the same normal value
+      if (cardsToPlay.length > 1 && cardsToPlay.every(card => card.value === cardsToPlay[0].value && isNormalCard(card.value)) || 
+          (cardsToPlay.length === 1 && isNormalCard(cardsToPlay[0].value))) {
         newGameStatus = 'humanWon';
         newLastAction = 'You won the game!';
       } else {
@@ -203,6 +225,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       turnCount: get().turnCount + 1,
       gameStatus: newGameStatus,
       selectedCards: [],
+      arrangedCards: [],
       lastPlayedValue: newLastPlayedValue,
       lastNormalCard: newLastNormalCard,
       requiredSuit: newRequiredSuit,
@@ -234,6 +257,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingAction: null,
       drawCount: get().drawCount + drawCount,
       selectedCards: [],
+      arrangedCards: [],
       lastPlayedValue: null,
       requiredSuit: null,
     });
@@ -323,7 +347,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         
         let newGameStatus = get().gameStatus;
         if (newAiHand.length === 0) {
-          if (selectedCards.every(card => isNormalCard(card.value))) {
+          if (selectedCards.length > 1 && selectedCards.every(card => card.value === selectedCards[0].value && isNormalCard(card.value)) ||
+              (selectedCards.length === 1 && isNormalCard(selectedCards[0].value))) {
             newGameStatus = 'aiWon';
             newLastAction = 'AI won the game!';
           } else {
