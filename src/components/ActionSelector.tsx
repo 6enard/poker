@@ -18,9 +18,17 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
   const selectedCards = useGameStore(state => state.selectedCards);
   const pendingAction = useGameStore(state => state.pendingAction);
+  const clearSelectedCards = useGameStore(state => state.clearSelectedCards);
   
   const handleAction = (action: CardAction) => {
-    onAction(selectedCards.length > 0 ? selectedCards : [card], action);
+    const cardsToPlay = selectedCards.length > 0 ? selectedCards : [card];
+    onAction(cardsToPlay, action);
+    clearSelectedCards();
+  };
+  
+  const handleCancel = () => {
+    clearSelectedCards();
+    onCancel();
   };
   
   const renderSuitSelector = () => {
@@ -51,7 +59,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
             className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={onCancel}
+            onClick={handleCancel}
           >
             Cancel
           </motion.button>
@@ -96,7 +104,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                   className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={onCancel}
+                  onClick={handleCancel}
                 >
                   Cancel
                 </motion.button>
@@ -130,7 +138,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 Cancel
               </motion.button>
@@ -161,7 +169,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 Cancel
               </motion.button>
@@ -191,7 +199,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 Cancel
               </motion.button>
@@ -221,7 +229,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 Cancel
               </motion.button>
@@ -252,7 +260,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
                 className="px-4 py-2 bg-gray-200 rounded-md text-gray-700"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 Cancel
               </motion.button>
@@ -277,7 +285,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={onCancel}
+      onClick={handleCancel}
     >
       <motion.div 
         className="bg-white p-6 rounded-xl shadow-lg max-w-md w-full"

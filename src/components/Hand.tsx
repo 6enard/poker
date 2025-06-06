@@ -33,24 +33,19 @@ const Hand: React.FC<HandProps> = ({
 
   const handleCardClick = (card: CardType) => {
     if (isVisible && isPlayable(card)) {
+      // Always toggle selection first
+      toggleCardSelection(card);
+      
+      // If there's an onCardClick handler and we have selected cards, trigger it
       if (onCardClick) {
-        // If there are selected cards, use the action selector
-        if (selectedCards.length > 0) {
-          onCardClick(selectedCards[0]);
-        } else {
-          // Toggle selection first
-          toggleCardSelection(card);
-          // Then trigger action selector if this is the first card selected
-          setTimeout(() => {
-            const currentSelected = useGameStore.getState().selectedCards;
-            if (currentSelected.length === 1 && currentSelected[0].id === card.id) {
-              onCardClick(card);
-            }
-          }, 100);
-        }
-      } else {
-        // Just toggle selection
-        toggleCardSelection(card);
+        // Small delay to allow state to update
+        setTimeout(() => {
+          const currentSelected = useGameStore.getState().selectedCards;
+          if (currentSelected.length > 0) {
+            // Use the first selected card as the representative for the action selector
+            onCardClick(currentSelected[0]);
+          }
+        }, 50);
       }
     }
   };

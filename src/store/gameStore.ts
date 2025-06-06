@@ -13,6 +13,7 @@ interface GameStore extends GameState {
   toggleCardSelection: (card: Card) => void;
   clearSelectedCards: () => void;
   arrangeCards: (cards: Card[]) => void;
+  canPlayMultipleCards: (cards: Card[]) => boolean;
 }
 
 const initialState: GameState = {
@@ -92,9 +93,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(initialState);
   },
 
-  toggleCardSelection: (card: Card) => {
-    const { selectedCards, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
+  canPlayMultipleCards: (cards: Card[]) => {
+    if (cards.length <= 1) return true;
+    
+    // All cards must have the same value
+    const firstValue = cards[0].value;
+    if (!cards.every(card => card.value === firstValue)) return false;
+    
+    const { discardPile, pendingAction, requiredSuit, lastPlayedValue } = get();
     const topCard = discardPile[discardPile.length - 1];
+    
+    // Find the card that can be played first (matches the requirement)
+    let validFirstCard: Card | null = null;
+    
+    for (const card of cards) {
+      if (get().isCardPlayable(card)) {
+        // Check if this card can satisfy the current requirement
+        if (pendingAction?.type === 'drawCards') {
+          if (card.value === '2' || card.value === '3' || card.value === 'A') {
+            validFirstCard = card;
+            break;
+          }
+        } else if (requiredSuit) {
+          if (card.suit === requiredSuit || card.value === 'A' || (card.value === 'K' && card.suit === requiredSuit)) {
+            validFirstCard = card;
+            break;
+          }
+        } else if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
+          if (card.value === 'A' || card.value === 'Q' || 
+              (card.value === '8' && card.suit === topCard.suit) || 
+              card.suit === topCard.suit) {
+            validFirstCard = card;
+            break;
+          }
+        } else {
+          // Normal matching rules
+          if (card.value === 'A' || card.value === topCard.value || card.suit === topCard.suit) {
+            validFirstCard = card;
+            break;
+          }
+        }
+      }
+    }
+    
+    return validFirstCard !== null;
+  },
+
+  toggleCardSelection: (card: Card) => {
+    const { selectedCards } = get();
 
     // If clicking on an already selected card, remove it
     if (selectedCards.find(c => c.id === card.id)) {
@@ -102,9 +148,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // If selecting a different value, clear previous selection
+    // If selecting a different value, clear previous selection and start new
     if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
-      set({ selectedCards: [] });
+      if (get().isCardPlayable(card)) {
+        set({ selectedCards: [card] });
+      }
       return;
     }
 
@@ -117,26 +165,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (selectedCards.length === 0 || selectedCards[0].value === card.value) {
       const newSelection = [...selectedCards, card];
       
-      // Sort cards to prioritize the one that matches the required suit/condition first
-      const sortedSelection = newSelection.sort((a, b) => {
-        // If there's a required suit, prioritize cards of that suit
-        if (requiredSuit) {
-          if (a.suit === requiredSuit && b.suit !== requiredSuit) return -1;
-          if (b.suit === requiredSuit && a.suit !== requiredSuit) return 1;
-        }
+      // Check if this combination can be played
+      if (get().canPlayMultipleCards(newSelection)) {
+        // Sort cards to prioritize the one that matches the required suit/condition first
+        const { discardPile, requiredSuit, lastPlayedValue } = get();
+        const topCard = discardPile[discardPile.length - 1];
         
-        // If no required suit, prioritize cards that match the top card's suit
-        if (a.suit === topCard.suit && b.suit !== topCard.suit) return -1;
-        if (b.suit === topCard.suit && a.suit !== topCard.suit) return 1;
+        const sortedSelection = newSelection.sort((a, b) => {
+          // If there's a required suit, prioritize cards of that suit
+          if (requiredSuit) {
+            if (a.suit === requiredSuit && b.suit !== requiredSuit) return -1;
+            if (b.suit === requiredSuit && a.suit !== requiredSuit) return 1;
+          }
+          
+          // If last played was Q or 8, prioritize cards that match the top card's suit
+          if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
+            if (a.suit === topCard.suit && b.suit !== topCard.suit) return -1;
+            if (b.suit === topCard.suit && a.suit !== topCard.suit) return 1;
+          }
+          
+          // If no required suit, prioritize cards that match the top card's suit
+          if (a.suit === topCard.suit && b.suit !== topCard.suit) return -1;
+          if (b.suit === topCard.suit && a.suit !== topCard.suit) return 1;
+          
+          // If values match the top card, prioritize those
+          if (a.value === topCard.value && b.value !== topCard.value) return -1;
+          if (b.value === topCard.value && a.value !== topCard.value) return 1;
+          
+          return 0;
+        });
         
-        // If values match the top card, prioritize those
-        if (a.value === topCard.value && b.value !== topCard.value) return -1;
-        if (b.value === topCard.value && a.value !== topCard.value) return 1;
-        
-        return 0;
-      });
-      
-      set({ selectedCards: sortedSelection });
+        set({ selectedCards: sortedSelection });
+      }
     }
   },
 
@@ -149,7 +209,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   isCardPlayable: (card: Card) => {
-    const { discardPile, pendingAction, currentPlayer, selectedCards, lastPlayedValue, requiredSuit } = get();
+    const { discardPile, pendingAction, currentPlayer, lastPlayedValue, requiredSuit } = get();
     if (currentPlayer !== 'human') return false;
     
     const topCard = discardPile[discardPile.length - 1];
@@ -181,20 +241,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Ace can always be played (except when there's a specific suit requirement)
     if (card.value === 'A') return true;
 
-    // For multiple card selection, ensure same value and at least one can be played
-    if (selectedCards.length > 0) {
-      // Must be same value
-      if (card.value !== selectedCards[0].value) return false;
-      
-      // For draw cards (2s and 3s), all must be draw cards
-      const isDrawCard = card.value === '2' || card.value === '3';
-      const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
-      if (isDrawCard !== hasDrawCards) return false;
-      
-      // Check if this specific card would be valid to play
-      return canPlayCard(card, topCard, pendingAction);
-    }
-
     return canPlayCard(card, topCard, pendingAction);
   },
 
@@ -206,9 +252,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Validate that we can play these cards
     if (cardsToPlay.length === 0) return;
     
-    // For multi-card plays, ensure all cards have the same value
-    if (cardsToPlay.length > 1 && !cardsToPlay.every(card => card.value === cardsToPlay[0].value)) {
-      return;
+    // For multi-card plays, ensure all cards have the same value and can be played together
+    if (cardsToPlay.length > 1) {
+      if (!cardsToPlay.every(card => card.value === cardsToPlay[0].value)) {
+        return;
+      }
+      if (!get().canPlayMultipleCards(cardsToPlay)) {
+        return;
+      }
     }
     
     const newHand = humanHand.filter(card => !cardsToPlay.some(c => c.id === card.id));
