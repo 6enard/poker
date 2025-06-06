@@ -153,7 +153,7 @@ const GameBoard: React.FC = () => {
                 Play Again
               </motion.button>
             </div>
-          </div>
+          </motion.div>
         </div>
       );
     }
