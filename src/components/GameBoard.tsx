@@ -59,7 +59,7 @@ const GameBoard: React.FC = () => {
       return `Draw ${pendingAction.count} cards or counter with 2/3/A`;
     }
     if (requiredSuit) {
-      return `Play a ${requiredSuit} card, King, or Ace`;
+      return `Play a ${requiredSuit} card or Ace`;
     }
     if (lastPlayedValue === 'Q') {
       const topCard = discardPile[discardPile.length - 1];
