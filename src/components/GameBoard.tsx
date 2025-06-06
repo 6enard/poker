@@ -27,16 +27,13 @@ const GameBoard: React.FC = () => {
     startGame,
     resetGame,
     requiredSuit,
-    lastPlayedValue,
-    selectedCards,
-    lastDrawCard
+    lastPlayedValue
   } = useGameStore();
   
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
   
   const handleCardClick = (card: CardType) => {
-    // Only show action selector for Aces that need suit selection
-    if (card.value === 'A' && !pendingAction?.type && !lastDrawCard) {
+    if (isCardPlayable(card)) {
       setSelectedCard(card);
     }
   };
@@ -62,7 +59,7 @@ const GameBoard: React.FC = () => {
       return `Draw ${pendingAction.count} cards or counter with 2/3/A`;
     }
     if (requiredSuit) {
-      return `Play a ${requiredSuit} card, Ace, or King`;
+      return `Play a ${requiredSuit} card or Ace`;
     }
     if (lastPlayedValue === 'Q') {
       const topCard = discardPile[discardPile.length - 1];
