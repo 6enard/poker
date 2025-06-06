@@ -155,10 +155,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return card.suit === requiredSuit || card.value === 'A' || card.value === 'K';
     }
 
-    // If last played was Q or 8, enforce the suit requirement
+    // If last played was Q or 8, enforce the specific suit requirement
     if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
-      // Must play the same suit, another Q, another 8, or an Ace
-      return card.suit === topCard.suit || card.value === 'Q' || card.value === '8' || card.value === 'A';
+      // Must play:
+      // - Same suit as the Q/8
+      // - Another Q (any suit)
+      // - An 8 of the SAME SUIT as the Q/8
+      // - An Ace (always playable)
+      if (card.value === 'A') return true;
+      if (card.value === 'Q') return true; // Any Q is allowed
+      if (card.value === '8' && card.suit === topCard.suit) return true; // Only 8 of same suit
+      return card.suit === topCard.suit; // Same suit as Q/8
     }
 
     // Ace can always be played (except when there's a specific suit requirement)
@@ -217,7 +224,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // Set the suit requirement based on the played card
       newRequiredSuit = cardsToPlay[0].suit;
       newLastPlayedValue = cardsToPlay[0].value;
-      newLastAction += ` - opponent must play a ${cardsToPlay[0].suit} card, another ${cardsToPlay[0].value}, or an 8`;
+      if (cardsToPlay[0].value === 'Q') {
+        newLastAction += ` - opponent must play a ${cardsToPlay[0].suit} card, another Q, or an 8 of ${cardsToPlay[0].suit}`;
+      } else {
+        newLastAction += ` - opponent must play a ${cardsToPlay[0].suit} card, another 8, or a Q`;
+      }
     } else if (cardsToPlay[0].value === 'K') {
       // King requires the next card to be the same suit or another King
       newRequiredSuit = cardsToPlay[0].suit;
@@ -335,11 +346,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
           card.suit === requiredSuit || card.value === 'A' || card.value === 'K'
         );
       }
-      // If last played was Q or 8, enforce the suit requirement
+      // If last played was Q or 8, enforce the specific suit requirement
       else if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
-        playableCards = aiHand.filter(card => 
-          card.suit === topCard.suit || card.value === 'Q' || card.value === '8' || card.value === 'A'
-        );
+        playableCards = aiHand.filter(card => {
+          if (card.value === 'A') return true; // Ace always playable
+          if (card.value === 'Q') return true; // Any Q is allowed
+          if (card.value === '8' && card.suit === topCard.suit) return true; // Only 8 of same suit
+          return card.suit === topCard.suit; // Same suit as Q/8
+        });
       }
       // Normal card matching
       else {
@@ -419,7 +433,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           nextPlayer = 'ai';
           newRequiredSuit = selectedCards[0].suit;
           newLastPlayedValue = selectedCards[0].value;
-          newLastAction += ` - AI must play a ${selectedCards[0].suit} card, another ${selectedCards[0].value}, or an 8`;
+          if (selectedCards[0].value === 'Q') {
+            newLastAction += ` - AI must play a ${selectedCards[0].suit} card, another Q, or an 8 of ${selectedCards[0].suit}`;
+          } else {
+            newLastAction += ` - AI must play a ${selectedCards[0].suit} card, another 8, or a Q`;
+          }
         } else if (selectedCards[0].value === 'K') {
           newRequiredSuit = selectedCards[0].suit;
           newLastAction += ` - next card must be ${selectedCards[0].suit} or another King`;

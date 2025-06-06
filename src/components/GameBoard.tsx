@@ -61,9 +61,13 @@ const GameBoard: React.FC = () => {
     if (requiredSuit) {
       return `Play a ${requiredSuit} card, King, or Ace`;
     }
-    if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
+    if (lastPlayedValue === 'Q') {
       const topCard = discardPile[discardPile.length - 1];
-      return `Play a ${topCard.suit} card, another ${lastPlayedValue}, 8, or Ace`;
+      return `Play a ${topCard.suit} card, another Q, or an 8 of ${topCard.suit}`;
+    }
+    if (lastPlayedValue === '8') {
+      const topCard = discardPile[discardPile.length - 1];
+      return `Play a ${topCard.suit} card, another 8, or a Q`;
     }
     return null;
   };
