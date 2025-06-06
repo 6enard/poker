@@ -25,7 +25,9 @@ const GameBoard: React.FC = () => {
     playCard,
     drawCard,
     startGame,
-    resetGame
+    resetGame,
+    requiredSuit,
+    lastPlayedValue
   } = useGameStore();
   
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
@@ -51,6 +53,20 @@ const GameBoard: React.FC = () => {
       drawCard();
     }
   };
+
+  const getCurrentRequirement = () => {
+    if (pendingAction?.type === 'drawCards') {
+      return `Draw ${pendingAction.count} cards or counter with 2/3/A`;
+    }
+    if (requiredSuit) {
+      return `Play a ${requiredSuit} card, King, or Ace`;
+    }
+    if (lastPlayedValue === 'Q' || lastPlayedValue === '8') {
+      const topCard = discardPile[discardPile.length - 1];
+      return `Play a ${topCard.suit} card, another ${lastPlayedValue}, 8, or Ace`;
+    }
+    return null;
+  };
   
   const renderGameContent = () => {
     if (gameStatus === 'setup') {
@@ -74,7 +90,7 @@ const GameBoard: React.FC = () => {
           >
             <h2 className="text-xl font-semibold mb-4">How to Play</h2>
             <ul className="list-disc pl-5 space-y-2 mb-4">
-              <li>Take turns playing cards that match the value of the last card</li>
+              <li>Take turns playing cards that match the value or suit of the last card</li>
               <li>Use special power cards strategically</li>
               <li>If you can't play, draw a card and skip your turn</li>
               <li>First player to get rid of all cards wins</li>
@@ -181,17 +197,10 @@ const GameBoard: React.FC = () => {
             </div>
             
             <div className="col-span-2 md:col-span-1 flex justify-center items-center">
-              {pendingAction && (
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm">
-                  {pendingAction.type === 'suitRequest' && (
-                    <div>Play a <span className="font-semibold">{pendingAction.suit}</span> card</div>
-                  )}
-                  {pendingAction.type === 'questionCard' && (
-                    <div>Play a <span className="font-semibold">{pendingAction.suit}</span> card</div>
-                  )}
-                  {pendingAction.type === 'drawCards' && (
-                    <div>Draw <span className="font-semibold">{pendingAction.count}</span> cards or counter</div>
-                  )}
+              {getCurrentRequirement() && (
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm max-w-xs text-center">
+                  <div className="font-semibold text-amber-800 mb-1">Current Requirement:</div>
+                  <div className="text-amber-700">{getCurrentRequirement()}</div>
                 </div>
               )}
             </div>
