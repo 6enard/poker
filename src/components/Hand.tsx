@@ -21,6 +21,8 @@ const Hand: React.FC<HandProps> = ({
 }) => {
   const selectedCards = useGameStore(state => state.selectedCards);
   const toggleCardSelection = useGameStore(state => state.toggleCardSelection);
+  const playCard = useGameStore(state => state.playCard);
+  const clearSelectedCards = useGameStore(state => state.clearSelectedCards);
   
   // Calculate the spread width based on number of cards
   const getSpreadWidth = () => {
@@ -33,20 +35,43 @@ const Hand: React.FC<HandProps> = ({
 
   const handleCardClick = (card: CardType) => {
     if (isVisible && isPlayable(card)) {
-      // Always toggle selection first
+      // Toggle selection first
       toggleCardSelection(card);
       
-      // If there's an onCardClick handler and we have selected cards, trigger it
-      if (onCardClick) {
-        // Small delay to allow state to update
-        setTimeout(() => {
-          const currentSelected = useGameStore.getState().selectedCards;
-          if (currentSelected.length > 0) {
-            // Use the first selected card as the representative for the action selector
-            onCardClick(currentSelected[0]);
+      // Auto-play the selected cards immediately
+      setTimeout(() => {
+        const currentSelected = useGameStore.getState().selectedCards;
+        if (currentSelected.length > 0) {
+          // Determine the action based on the card type
+          const firstCard = currentSelected[0];
+          
+          if (firstCard.value === 'A') {
+            // For Aces, we need to handle suit selection differently
+            // For now, just play without suit selection if countering draw cards
+            const { pendingAction, lastDrawCard } = useGameStore.getState();
+            if (pendingAction?.type === 'drawCards' || lastDrawCard) {
+              playCard(currentSelected, { type: 'ace', requestedSuit: null });
+            } else {
+              // For regular Ace play, we still need the action selector for suit selection
+              if (onCardClick) {
+                onCardClick(firstCard);
+              }
+            }
+          } else if (firstCard.value === '2' || firstCard.value === '3') {
+            const totalDraws = currentSelected.reduce((sum, c) => sum + (c.value === '2' ? 2 : 3), 0);
+            playCard(currentSelected, { type: 'draw', count: totalDraws, cards: currentSelected });
+          } else if (firstCard.value === 'J') {
+            playCard(currentSelected, { type: 'skip' });
+          } else if (firstCard.value === '8' || firstCard.value === 'Q') {
+            playCard(currentSelected, { type: 'question', suit: firstCard.suit });
+          } else if (firstCard.value === 'K') {
+            playCard(currentSelected, { type: 'pass' });
+          } else {
+            // Normal card
+            playCard(currentSelected, { type: 'normal', cards: currentSelected });
           }
-        }, 50);
-      }
+        }
+      }, 50);
     }
   };
 
