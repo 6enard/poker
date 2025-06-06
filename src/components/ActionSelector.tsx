@@ -89,7 +89,7 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
           return (
             <div className="flex flex-col gap-3 items-center">
               <h3 className="text-lg font-medium">Counter Draw Attack</h3>
-              <p className="text-sm text-gray-600">Play Ace to counter the draw cards</p>
+              <p className="text-sm text-gray-600">Play {cards.length > 1 ? `${cards.length} Aces` : 'Ace'} to counter the draw cards</p>
               
               <div className="flex justify-center gap-3 mt-2">
                 <motion.button
@@ -121,7 +121,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Draw {totalDraws} Attack</h3>
-            <p className="text-sm text-gray-600">Your opponent will draw {totalDraws} cards</p>
+            <p className="text-sm text-gray-600">
+              Playing {cards.length > 1 ? `${cards.length} cards` : 'card'} - opponent will draw {totalDraws} cards
+            </p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -150,7 +152,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Play {cards.length > 1 ? `${cards.length} Cards` : 'Card'}</h3>
-            <p className="text-sm text-gray-600">Opponent must play a {value}</p>
+            <p className="text-sm text-gray-600">
+              Continue playing {cards[0].suit} cards after this
+            </p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -178,7 +182,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Skip Turn</h3>
-            <p className="text-sm text-gray-600">Play again after this turn</p>
+            <p className="text-sm text-gray-600">
+              Playing {cards.length > 1 ? `${cards.length} Jacks` : 'Jack'} - play again after this turn
+            </p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -206,7 +212,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Pass Turn</h3>
-            <p className="text-sm text-gray-600">End your turn immediately</p>
+            <p className="text-sm text-gray-600">
+              Playing {cards.length > 1 ? `${cards.length} Kings` : 'King'} - next card must be {cards[0].suit}
+            </p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button
@@ -235,6 +243,9 @@ const ActionSelector: React.FC<ActionSelectorProps> = ({
         return (
           <div className="flex flex-col gap-3 items-center">
             <h3 className="text-lg font-medium">Play {cards.length > 1 ? `${cards.length} Cards` : 'Card'}</h3>
+            <p className="text-sm text-gray-600">
+              {cards.length > 1 ? `Playing ${cards.length} ${cards[0].value}s` : `Playing ${cards[0].value} of ${cards[0].suit}`}
+            </p>
             
             <div className="flex justify-center gap-3 mt-2">
               <motion.button

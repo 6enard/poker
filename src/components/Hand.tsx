@@ -20,6 +20,7 @@ const Hand: React.FC<HandProps> = ({
   title
 }) => {
   const selectedCards = useGameStore(state => state.selectedCards);
+  const toggleCardSelection = useGameStore(state => state.toggleCardSelection);
   
   // Calculate the spread width based on number of cards
   const getSpreadWidth = () => {
@@ -29,6 +30,30 @@ const Hand: React.FC<HandProps> = ({
   };
 
   const spreadWidth = getSpreadWidth();
+
+  const handleCardClick = (card: CardType) => {
+    if (isVisible && isPlayable(card)) {
+      if (onCardClick) {
+        // If there are selected cards, use the action selector
+        if (selectedCards.length > 0) {
+          onCardClick(selectedCards[0]);
+        } else {
+          // Toggle selection first
+          toggleCardSelection(card);
+          // Then trigger action selector if this is the first card selected
+          setTimeout(() => {
+            const currentSelected = useGameStore.getState().selectedCards;
+            if (currentSelected.length === 1 && currentSelected[0].id === card.id) {
+              onCardClick(card);
+            }
+          }, 100);
+        }
+      } else {
+        // Just toggle selection
+        toggleCardSelection(card);
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -54,14 +79,14 @@ const Hand: React.FC<HandProps> = ({
               style={{ 
                 left: '50%',
                 transform: `translateX(calc(-50% + ${offset}px)) rotate(${(index - cards.length / 2) * 2}deg) translateY(${isSelected ? '-20px' : '0'})`,
-                zIndex: index
+                zIndex: index + (isSelected ? 100 : 0)
               }}
             >
               <Card 
                 card={card} 
                 isPlayable={isVisible && isPlayable(card)} 
                 isFaceDown={!isVisible}
-                onClick={onCardClick}
+                onClick={handleCardClick}
                 isSelected={isSelected}
               />
             </div>
@@ -74,9 +99,14 @@ const Hand: React.FC<HandProps> = ({
         animate={{ opacity: 1 }}
       >
         {cards.length} card{cards.length !== 1 ? 's' : ''}
+        {selectedCards.length > 0 && isVisible && (
+          <span className="ml-2 text-blue-600">
+            ({selectedCards.length} selected)
+          </span>
+        )}
       </motion.div>
     </div>
   );
 };
 
-export default Hand
+export default Hand;

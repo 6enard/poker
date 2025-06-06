@@ -96,34 +96,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { selectedCards, discardPile, pendingAction, lastPlayedValue, requiredSuit } = get();
     const topCard = discardPile[discardPile.length - 1];
 
-    // Clear selection if selecting a different value
-    if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
-      set({ selectedCards: [] });
-    }
-
+    // If clicking on an already selected card, remove it
     if (selectedCards.find(c => c.id === card.id)) {
       set({ selectedCards: selectedCards.filter(c => c.id !== card.id) });
       return;
     }
 
-    // Check if card is playable according to current game state
+    // If selecting a different value, clear previous selection
+    if (selectedCards.length > 0 && selectedCards[0].value !== card.value) {
+      set({ selectedCards: [] });
+      return;
+    }
+
+    // Check if this card can be played
     if (!get().isCardPlayable(card)) {
       return;
     }
 
-    const isDrawCard = card.value === '2' || card.value === '3';
-    const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
-    
-    // Allow selecting multiple cards of the same value
-    if ((isDrawCard && hasDrawCards) || (!isDrawCard && (selectedCards.length === 0 || selectedCards[0].value === card.value))) {
-      // Add card to selection
+    // For multi-card selection of same value
+    if (selectedCards.length === 0 || selectedCards[0].value === card.value) {
       const newSelection = [...selectedCards, card];
       
-      // Sort selected cards to prioritize matching suit
+      // Sort cards to prioritize the one that matches the required suit/condition first
       const sortedSelection = newSelection.sort((a, b) => {
-        const aMatchesSuit = a.suit === topCard.suit ? -1 : 0;
-        const bMatchesSuit = b.suit === topCard.suit ? -1 : 0;
-        return aMatchesSuit - bMatchesSuit;
+        // If there's a required suit, prioritize cards of that suit
+        if (requiredSuit) {
+          if (a.suit === requiredSuit && b.suit !== requiredSuit) return -1;
+          if (b.suit === requiredSuit && a.suit !== requiredSuit) return 1;
+        }
+        
+        // If no required suit, prioritize cards that match the top card's suit
+        if (a.suit === topCard.suit && b.suit !== topCard.suit) return -1;
+        if (b.suit === topCard.suit && a.suit !== topCard.suit) return 1;
+        
+        // If values match the top card, prioritize those
+        if (a.value === topCard.value && b.value !== topCard.value) return -1;
+        if (b.value === topCard.value && a.value !== topCard.value) return 1;
+        
+        return 0;
       });
       
       set({ selectedCards: sortedSelection });
@@ -171,11 +181,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Ace can always be played (except when there's a specific suit requirement)
     if (card.value === 'A') return true;
 
-    // For multiple card selection, ensure same value
+    // For multiple card selection, ensure same value and at least one can be played
     if (selectedCards.length > 0) {
+      // Must be same value
+      if (card.value !== selectedCards[0].value) return false;
+      
+      // For draw cards (2s and 3s), all must be draw cards
       const isDrawCard = card.value === '2' || card.value === '3';
       const hasDrawCards = selectedCards.some(c => c.value === '2' || c.value === '3');
-      return isDrawCard ? hasDrawCards : card.value === selectedCards[0].value;
+      if (isDrawCard !== hasDrawCards) return false;
+      
+      // Check if this specific card would be valid to play
+      return canPlayCard(card, topCard, pendingAction);
     }
 
     return canPlayCard(card, topCard, pendingAction);
@@ -185,6 +202,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { humanHand, discardPile, lastNormalCard, selectedCards, lastDrawCard, requiredSuit, currentPlayer } = get();
     
     const cardsToPlay = selectedCards.length > 0 ? selectedCards : cards;
+    
+    // Validate that we can play these cards
+    if (cardsToPlay.length === 0) return;
+    
+    // For multi-card plays, ensure all cards have the same value
+    if (cardsToPlay.length > 1 && !cardsToPlay.every(card => card.value === cardsToPlay[0].value)) {
+      return;
+    }
     
     const newHand = humanHand.filter(card => !cardsToPlay.some(c => c.id === card.id));
     const newDiscardPile = [...discardPile, ...cardsToPlay];
@@ -376,11 +401,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (pendingAction?.type === 'drawCards' && cardGroups['A']) {
           selectedCards = [cardGroups['A'][0]];
         } else {
-          // Find the group with the most cards
+          // Find the group with the most cards, prioritizing matching suits
           Object.values(cardGroups).forEach(group => {
             if (group.length > selectedCards.length) {
               // Sort cards to prioritize matching suit
               const sortedGroup = [...group].sort((a, b) => {
+                // If there's a required suit, prioritize that
+                if (requiredSuit) {
+                  if (a.suit === requiredSuit && b.suit !== requiredSuit) return -1;
+                  if (b.suit === requiredSuit && a.suit !== requiredSuit) return 1;
+                }
+                
+                // Otherwise prioritize matching the top card's suit
                 const aMatchesSuit = a.suit === topCard.suit ? -1 : 0;
                 const bMatchesSuit = b.suit === topCard.suit ? -1 : 0;
                 return aMatchesSuit - bMatchesSuit;
